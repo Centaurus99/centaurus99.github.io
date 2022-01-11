@@ -102,4 +102,6 @@ theme: landscape
 # Deployment
 ## Docs: https://hexo.io/docs/one-command-deployment
 deploy:
-  type: ''
+  type: git
+  repository: git@github.com:Centaurus99/centaurus99.github.io.git
+  branch: gh-pages
