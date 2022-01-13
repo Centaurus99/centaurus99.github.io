@@ -153,15 +153,16 @@ search:
 # Comment plugin configurations
 # https://ppoffice.github.io/hexo-theme-icarus/categories/Plugins/Comment/
 comment:
-    # type: isso
-    # url: blog.centaurus99.me/isso
-    type: gitalk
-    client_id: 942b1619d8417fee4c77
-    client_secret: c28946b30a36d4be991d584c34ab8b93e0f7cec1
-    repo: centaurus99.github.io
-    owner: Centaurus99
-    admin:
-        - Centaurus99
+    type: waline
+    server_url: https://waline.centaurus99.me
+    lang: zh-CN
+    emoji:
+      - 'https://cdn.jsdelivr.net/gh/walinejs/emojis@1.0.0/qq'
+      - 'https://cdn.jsdelivr.net/gh/walinejs/emojis@1.0.0/bilibili'
+      - 'https://cdn.jsdelivr.net/gh/walinejs/emojis@1.0.0/alus'
+      - 'https://cdn.jsdelivr.net/gh/walinejs/emojis@1.0.0/tieba'
+      - 'https://cdn.jsdelivr.net/gh/walinejs/emojis@1.0.0/tw-emoji'
+      - 'https://cdn.jsdelivr.net/gh/walinejs/emojis@1.0.0/weibo'
     # type: disqus
     # # Disqus shortname
     # shortname: ''
