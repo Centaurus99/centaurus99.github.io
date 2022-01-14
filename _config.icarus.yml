@@ -118,7 +118,11 @@ footer:
     # Links to be shown on the right of the footer section
     links:
         Creative Commons:
-            icon: fab fa-creative-commons
+            icon:
+              - fab fa-creative-commons
+              - fab fa-creative-commons-by
+              - fab fa-creative-commons-nc
+              - fab fa-creative-commons-sa
             url: 'https://creativecommons.org/'
         GitHub:
             icon: fab fa-github
@@ -142,8 +146,12 @@ article:
     # Article licensing block
     licenses:
         Creative Commons:
-            icon: fab fa-creative-commons
-            url: 'https://creativecommons.org/'
+            icon:
+              - fab fa-creative-commons
+              - fab fa-creative-commons-by
+              - fab fa-creative-commons-nc
+              - fab fa-creative-commons-sa
+            url: 'https://creativecommons.org/licenses/by-nc-sa/4.0/'
         'CC BY-NC-SA 4.0': 'https://creativecommons.org/licenses/by-nc-sa/4.0/'
 
 # Search plugin configurations
