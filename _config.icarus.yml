@@ -3,7 +3,7 @@ version: 4.0.0
 # Icarus theme variant, can be "default" or "cyberpunk"
 variant: default
 # Path or URL to the website's logo
-logo: /img/logo.svg
+# logo: /img/logo.svg
 # Page metadata configurations
 head:
     # URL or path to the website's icon
@@ -241,13 +241,13 @@ widgets:
         # Author's current location
         # location: Your location
         # URL or path to the avatar image
-        avatar: 
+        avatar: /img/gravatar.jpg
         # Whether show the rounded avatar image
         avatar_rounded: true
         # Email address for the Gravatar
-        gravatar: 1102569568@qq.com
+        gravatar:
         # URL or path for the follow button
-        # follow_link: 'https://github.com/Centaurus99'
+        follow_link: 'https://github.com/Centaurus99'
         # Links to be shown on the bottom of the profile widget
         social_links:
             Github:
@@ -275,7 +275,7 @@ widgets:
         # Whether to collapse sub-headings when they are out-of-view
         collapsed: true
         # Maximum level of headings to show (1-6)
-        depth: 3
+        depth: 6
     # Recommendation links widget configurations
     # -
     #     # Where should the widget be placed, left sidebar or right sidebar
@@ -285,26 +285,26 @@ widgets:
     #     links:
     #         Hexo: 'https://hexo.io'
     #         Bulma: 'https://bulma.io'
-    # Categories widget configurations
-    -
-        # Where should the widget be placed, left sidebar or right sidebar
-        position: left
-        type: categories
     # Recent posts widget configurations
     -
         # Where should the widget be placed, left sidebar or right sidebar
-        position: left
+        position: right
         type: recent_posts
-    # Archives widget configurations
+    # Categories widget configurations
     -
         # Where should the widget be placed, left sidebar or right sidebar
-        position: left
-        type: archives
+        position: right
+        type: categories
     # Tags widget configurations
     -
         # Where should the widget be placed, left sidebar or right sidebar
         position: left
         type: tags
+    # Archives widget configurations
+    -
+        # Where should the widget be placed, left sidebar or right sidebar
+        position: left
+        type: archives
     # Google FeedBurner email subscription widget configurations
     # -
     #     # Where should the widget be placed, left sidebar or right sidebar
