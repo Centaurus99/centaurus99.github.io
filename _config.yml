@@ -105,3 +105,8 @@ deploy:
   type: git
   repository: git@github.com:Centaurus99/centaurus99.github.io.git
   branch: gh-pages
+
+feed:
+  type:
+    - atom
+    - rss2
