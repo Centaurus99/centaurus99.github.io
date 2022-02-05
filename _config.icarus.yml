@@ -3,7 +3,9 @@ version: 5.0.0
 # Icarus theme variant, can be "default" or "cyberpunk"
 variant: default
 # Path or URL to the website's logo
-# logo: /img/logo.svg
+# logo:
+#     light: /img/logo.svg
+#     dark: /img/logo-dark.svg
 # Page metadata configurations
 head:
     # URL or path to the website's icon
@@ -134,7 +136,7 @@ article:
     highlight:
         # Code highlight themes
         # https://github.com/highlightjs/highlight.js/tree/master/src/styles
-        theme: github-gist
+        theme: atom-one-light
         # Show copy code button
         clipboard: true
         # Default folding status of the code blocks. Can be "", "folded", "unfolded"
@@ -171,6 +173,7 @@ comment:
       - 'https://cdn.jsdelivr.net/gh/walinejs/emojis@1.0.0/tieba'
       - 'https://cdn.jsdelivr.net/gh/walinejs/emojis@1.0.0/tw-emoji'
       - 'https://cdn.jsdelivr.net/gh/walinejs/emojis@1.0.0/weibo'
+    dark: body.night
     # type: disqus
     # # Disqus shortname
     # shortname: ''
