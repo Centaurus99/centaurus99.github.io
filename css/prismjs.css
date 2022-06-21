@@ -1,0 +1,270 @@
+body:not(.night) .v[data-class=v] .token {
+  all: unset;
+}
+body:not(.night) .v[data-class=v] pre code {
+  all: unset;
+  font-family: Consolas, Courier, Menlo, monospace, Ubuntu, Roboto;
+}
+body:not(.night) .v[data-class=v] pre[class*=language-] {
+  all: unset;
+  font-family: Consolas, Courier, Menlo, monospace, Ubuntu, Roboto;
+}
+body:not(.night) .v[data-class=v] .token.comment,
+body:not(.night) .v[data-class=v] .token.prolog,
+body:not(.night) .v[data-class=v] .token.cdata {
+  color: #a0a1a7;
+}
+body:not(.night) .v[data-class=v] .token.doctype,
+body:not(.night) .v[data-class=v] .token.punctuation,
+body:not(.night) .v[data-class=v] .token.entity {
+  color: #383a42;
+}
+body:not(.night) .v[data-class=v] .token.attr-name,
+body:not(.night) .v[data-class=v] .token.class-name,
+body:not(.night) .v[data-class=v] .token.boolean,
+body:not(.night) .v[data-class=v] .token.constant,
+body:not(.night) .v[data-class=v] .token.number,
+body:not(.night) .v[data-class=v] .token.atrule {
+  color: #b76b01;
+}
+body:not(.night) .v[data-class=v] .token.keyword {
+  color: #a626a4;
+}
+body:not(.night) .v[data-class=v] .token.property,
+body:not(.night) .v[data-class=v] .token.tag,
+body:not(.night) .v[data-class=v] .token.symbol,
+body:not(.night) .v[data-class=v] .token.deleted,
+body:not(.night) .v[data-class=v] .token.important {
+  color: #e45649;
+}
+body:not(.night) .v[data-class=v] .token.selector,
+body:not(.night) .v[data-class=v] .token.string,
+body:not(.night) .v[data-class=v] .token.char,
+body:not(.night) .v[data-class=v] .token.builtin,
+body:not(.night) .v[data-class=v] .token.inserted,
+body:not(.night) .v[data-class=v] .token.regex,
+body:not(.night) .v[data-class=v] .token.attr-value,
+body:not(.night) .v[data-class=v] .token.attr-value > .token.punctuation {
+  color: #50a14f;
+}
+body:not(.night) .v[data-class=v] .token.variable,
+body:not(.night) .v[data-class=v] .token.operator,
+body:not(.night) .v[data-class=v] .token.function {
+  color: #4078f2;
+}
+body:not(.night) .v[data-class=v] .token.url {
+  color: #0184bc;
+}
+body:not(.night) .v[data-class=v] .token.attr-value > .token.punctuation.attr-equals,
+body:not(.night) .v[data-class=v] .token.special-attr > .token.attr-value > .token.value.css {
+  color: #383a42;
+}
+body:not(.night) .v[data-class=v] .language-css .token.selector {
+  color: #e45649;
+}
+body:not(.night) .v[data-class=v] .language-css .token.property {
+  color: #383a42;
+}
+body:not(.night) .v[data-class=v] .language-css .token.function,
+body:not(.night) .v[data-class=v] .language-css .token.url > .token.function {
+  color: #0184bc;
+}
+body:not(.night) .v[data-class=v] .language-css .token.url > .token.string.url {
+  color: #50a14f;
+}
+body:not(.night) .v[data-class=v] .language-css .token.important,
+body:not(.night) .v[data-class=v] .language-css .token.atrule .token.rule {
+  color: #a626a4;
+}
+body:not(.night) .v[data-class=v] .language-javascript .token.operator {
+  color: #a626a4;
+}
+body:not(.night) .v[data-class=v] .language-javascript .token.template-string > .token.interpolation > .token.interpolation-punctuation.punctuation {
+  color: #ca1243;
+}
+body:not(.night) .v[data-class=v] .language-json .token.operator {
+  color: #383a42;
+}
+body:not(.night) .v[data-class=v] .language-json .token.null.keyword {
+  color: #b76b01;
+}
+body:not(.night) .v[data-class=v] .language-markdown .token.url,
+body:not(.night) .v[data-class=v] .language-markdown .token.url > .token.operator,
+body:not(.night) .v[data-class=v] .language-markdown .token.url-reference.url > .token.string {
+  color: #383a42;
+}
+body:not(.night) .v[data-class=v] .language-markdown .token.url > .token.content {
+  color: #4078f2;
+}
+body:not(.night) .v[data-class=v] .language-markdown .token.url > .token.url,
+body:not(.night) .v[data-class=v] .language-markdown .token.url-reference.url {
+  color: #0184bc;
+}
+body:not(.night) .v[data-class=v] .language-markdown .token.blockquote.punctuation,
+body:not(.night) .v[data-class=v] .language-markdown .token.hr.punctuation {
+  color: #a0a1a7;
+  font-style: italic;
+}
+body:not(.night) .v[data-class=v] .language-markdown .token.code-snippet {
+  color: #50a14f;
+}
+body:not(.night) .v[data-class=v] .language-markdown .token.bold .token.content {
+  color: #b76b01;
+}
+body:not(.night) .v[data-class=v] .language-markdown .token.italic .token.content {
+  color: #a626a4;
+}
+body:not(.night) .v[data-class=v] .language-markdown .token.strike .token.content,
+body:not(.night) .v[data-class=v] .language-markdown .token.strike .token.punctuation,
+body:not(.night) .v[data-class=v] .language-markdown .token.list.punctuation,
+body:not(.night) .v[data-class=v] .language-markdown .token.title.important > .token.punctuation {
+  color: #e45649;
+}
+body:not(.night) .v[data-class=v] .token.bold {
+  font-weight: bold;
+}
+body:not(.night) .v[data-class=v] .token.comment,
+body:not(.night) .v[data-class=v] .token.italic {
+  font-style: italic;
+}
+body:not(.night) .v[data-class=v] .token.entity {
+  cursor: help;
+}
+body:not(.night) .v[data-class=v] .token.namespace {
+  opacity: 0.8;
+}
+body.night .v[data-class=v] .token {
+  all: unset;
+}
+body.night .v[data-class=v] pre code {
+  all: unset;
+  font-family: Consolas, Courier, Menlo, monospace, Ubuntu, Roboto;
+}
+body.night .v[data-class=v] pre[class*=language-] {
+  all: unset;
+  font-family: Consolas, Courier, Menlo, monospace, Ubuntu, Roboto;
+}
+body.night .v[data-class=v] .token.comment,
+body.night .v[data-class=v] .token.prolog,
+body.night .v[data-class=v] .token.cdata {
+  color: #5c6370;
+}
+body.night .v[data-class=v] .token.doctype,
+body.night .v[data-class=v] .token.punctuation,
+body.night .v[data-class=v] .token.entity {
+  color: #abb2bf;
+}
+body.night .v[data-class=v] .token.attr-name,
+body.night .v[data-class=v] .token.class-name,
+body.night .v[data-class=v] .token.boolean,
+body.night .v[data-class=v] .token.constant,
+body.night .v[data-class=v] .token.number,
+body.night .v[data-class=v] .token.atrule {
+  color: #d19a66;
+}
+body.night .v[data-class=v] .token.keyword {
+  color: #c678dd;
+}
+body.night .v[data-class=v] .token.property,
+body.night .v[data-class=v] .token.tag,
+body.night .v[data-class=v] .token.symbol,
+body.night .v[data-class=v] .token.deleted,
+body.night .v[data-class=v] .token.important {
+  color: #e06c75;
+}
+body.night .v[data-class=v] .token.selector,
+body.night .v[data-class=v] .token.string,
+body.night .v[data-class=v] .token.char,
+body.night .v[data-class=v] .token.builtin,
+body.night .v[data-class=v] .token.inserted,
+body.night .v[data-class=v] .token.regex,
+body.night .v[data-class=v] .token.attr-value,
+body.night .v[data-class=v] .token.attr-value > .token.punctuation {
+  color: #98c379;
+}
+body.night .v[data-class=v] .token.variable,
+body.night .v[data-class=v] .token.operator,
+body.night .v[data-class=v] .token.function {
+  color: #61afef;
+}
+body.night .v[data-class=v] .token.url {
+  color: #56b6c2;
+}
+body.night .v[data-class=v] .token.attr-value > .token.punctuation.attr-equals,
+body.night .v[data-class=v] .token.special-attr > .token.attr-value > .token.value.css {
+  color: #abb2bf;
+}
+body.night .v[data-class=v] .language-css .token.selector {
+  color: #e06c75;
+}
+body.night .v[data-class=v] .language-css .token.property {
+  color: #abb2bf;
+}
+body.night .v[data-class=v] .language-css .token.function,
+body.night .v[data-class=v] .language-css .token.url > .token.function {
+  color: #56b6c2;
+}
+body.night .v[data-class=v] .language-css .token.url > .token.string.url {
+  color: #98c379;
+}
+body.night .v[data-class=v] .language-css .token.important,
+body.night .v[data-class=v] .language-css .token.atrule .token.rule {
+  color: #c678dd;
+}
+body.night .v[data-class=v] .language-javascript .token.operator {
+  color: #c678dd;
+}
+body.night .v[data-class=v] .language-javascript .token.template-string > .token.interpolation > .token.interpolation-punctuation.punctuation {
+  color: #be5046;
+}
+body.night .v[data-class=v] .language-json .token.operator {
+  color: #abb2bf;
+}
+body.night .v[data-class=v] .language-json .token.null.keyword {
+  color: #d19a66;
+}
+body.night .v[data-class=v] .language-markdown .token.url,
+body.night .v[data-class=v] .language-markdown .token.url > .token.operator,
+body.night .v[data-class=v] .language-markdown .token.url-reference.url > .token.string {
+  color: #abb2bf;
+}
+body.night .v[data-class=v] .language-markdown .token.url > .token.content {
+  color: #61afef;
+}
+body.night .v[data-class=v] .language-markdown .token.url > .token.url,
+body.night .v[data-class=v] .language-markdown .token.url-reference.url {
+  color: #56b6c2;
+}
+body.night .v[data-class=v] .language-markdown .token.blockquote.punctuation,
+body.night .v[data-class=v] .language-markdown .token.hr.punctuation {
+  color: #5c6370;
+  font-style: italic;
+}
+body.night .v[data-class=v] .language-markdown .token.code-snippet {
+  color: #98c379;
+}
+body.night .v[data-class=v] .language-markdown .token.bold .token.content {
+  color: #d19a66;
+}
+body.night .v[data-class=v] .language-markdown .token.italic .token.content {
+  color: #c678dd;
+}
+body.night .v[data-class=v] .language-markdown .token.strike .token.content,
+body.night .v[data-class=v] .language-markdown .token.strike .token.punctuation,
+body.night .v[data-class=v] .language-markdown .token.list.punctuation,
+body.night .v[data-class=v] .language-markdown .token.title.important > .token.punctuation {
+  color: #e06c75;
+}
+body.night .v[data-class=v] .token.bold {
+  font-weight: bold;
+}
+body.night .v[data-class=v] .token.comment,
+body.night .v[data-class=v] .token.italic {
+  font-style: italic;
+}
+body.night .v[data-class=v] .token.entity {
+  cursor: help;
+}
+body.night .v[data-class=v] .token.namespace {
+  opacity: 0.8;
+}
