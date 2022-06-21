@@ -164,7 +164,7 @@ search:
 # https://ppoffice.github.io/hexo-theme-icarus/categories/Plugins/Comment/
 comment:
     type: waline
-    server_url: https://waline.centaurus99.me
+    server_url: https://waline.centaurus99.top
     lang: zh-CN
     emoji:
       - 'https://cdn.jsdelivr.net/gh/walinejs/emojis@1.0.0/qq'
