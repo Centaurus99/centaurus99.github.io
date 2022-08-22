@@ -1,5 +1,5 @@
 # Version of the configuration file
-version: 5.0.0
+version: 5.1.0
 # Icarus theme variant, can be "default" or "cyberpunk"
 variant: default
 # Path or URL to the website's logo
@@ -113,7 +113,7 @@ navbar:
         标签: /tags
         关于: /about
     # Links to be shown on the right of the navigation bar
-    links:
+    links: 
 
 # Page footer configurations
 footer:
@@ -121,14 +121,14 @@ footer:
     links:
         Creative Commons:
             icon:
-              - fab fa-creative-commons
-              - fab fa-creative-commons-by
-              - fab fa-creative-commons-nc
-              - fab fa-creative-commons-sa
-            url: 'https://creativecommons.org/licenses/by-nc-sa/4.0/'
+                - fab fa-creative-commons
+                - fab fa-creative-commons-by
+                - fab fa-creative-commons-nc
+                - fab fa-creative-commons-sa
+            url: https://creativecommons.org/licenses/by-nc-sa/4.0/
         GitHub:
             icon: fab fa-github
-            url: 'https://github.com/Centaurus99/centaurus99.github.io'
+            url: https://github.com/Centaurus99/centaurus99.github.io
 
 # Article related configurations
 article:
@@ -149,17 +149,19 @@ article:
     licenses:
         Creative Commons:
             icon:
-              - fab fa-creative-commons
-              - fab fa-creative-commons-by
-              - fab fa-creative-commons-nc
-              - fab fa-creative-commons-sa
-            url: 'https://creativecommons.org/licenses/by-nc-sa/4.0/'
-        'CC BY-NC-SA 4.0': 'https://creativecommons.org/licenses/by-nc-sa/4.0/'
+                - fab fa-creative-commons
+                - fab fa-creative-commons-by
+                - fab fa-creative-commons-nc
+                - fab fa-creative-commons-sa
+            url: https://creativecommons.org/licenses/by-nc-sa/4.0/
+        CC BY-NC-SA 4.0: https://creativecommons.org/licenses/by-nc-sa/4.0/
 
 # Search plugin configurations
 # https://ppoffice.github.io/hexo-theme-icarus/categories/Plugins/Search/
 search:
     type: insight
+    # Whether to include pages in the search results
+    index_pages: true
 # Comment plugin configurations
 # https://ppoffice.github.io/hexo-theme-icarus/categories/Plugins/Comment/
 comment:
@@ -167,14 +169,14 @@ comment:
     server_url: https://waline.centaurus99.top
     lang: zh-CN
     emoji:
-      - 'https://cdn.jsdelivr.net/gh/walinejs/emojis@1.0.0/qq'
-      - 'https://cdn.jsdelivr.net/gh/walinejs/emojis@1.0.0/bilibili'
-      - 'https://cdn.jsdelivr.net/gh/walinejs/emojis@1.0.0/alus'
-      - 'https://cdn.jsdelivr.net/gh/walinejs/emojis@1.0.0/tieba'
-      - 'https://cdn.jsdelivr.net/gh/walinejs/emojis@1.0.0/tw-emoji'
-      - 'https://cdn.jsdelivr.net/gh/walinejs/emojis@1.0.0/weibo'
+        - https://cdn.jsdelivr.net/gh/walinejs/emojis@1.0.0/qq
+        - https://cdn.jsdelivr.net/gh/walinejs/emojis@1.0.0/bilibili
+        - https://cdn.jsdelivr.net/gh/walinejs/emojis@1.0.0/alus
+        - https://cdn.jsdelivr.net/gh/walinejs/emojis@1.0.0/tieba
+        - https://cdn.jsdelivr.net/gh/walinejs/emojis@1.0.0/tw-emoji
+        - https://cdn.jsdelivr.net/gh/walinejs/emojis@1.0.0/weibo
     dark: body.night
-    highlight: false
+    highlighter: false
     # type: disqus
     # # Disqus shortname
     # shortname: ''
@@ -249,14 +251,14 @@ widgets:
         # Whether show the rounded avatar image
         avatar_rounded: true
         # Email address for the Gravatar
-        gravatar:
+        gravatar: 
         # URL or path for the follow button
-        follow_link: 'https://github.com/Centaurus99'
+        follow_link: https://github.com/Centaurus99
         # Links to be shown on the bottom of the profile widget
         social_links:
             Github:
                 icon: fab fa-github
-                url: 'https://github.com/Centaurus99'
+                url: https://github.com/Centaurus99
             # Facebook:
             #     icon: fab fa-facebook
             #     url: 'https://facebook.com'
@@ -281,15 +283,6 @@ widgets:
         # Maximum level of headings to show (1-6)
         depth: 6
     # Recommendation links widget configurations
-    # -
-    #     # Where should the widget be placed, left sidebar or right sidebar
-    #     position: left
-    #     type: links
-    #     # Names and URLs of the sites
-    #     links:
-    #         Hexo: 'https://hexo.io'
-    #         Bulma: 'https://bulma.io'
-    # Recent posts widget configurations
     -
         # Where should the widget be placed, left sidebar or right sidebar
         position: right
