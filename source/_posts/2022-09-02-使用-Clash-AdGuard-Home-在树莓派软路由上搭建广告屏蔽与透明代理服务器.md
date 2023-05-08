@@ -9,7 +9,7 @@ categories:
   - 折腾
   - 树莓派
 date: 2022-09-02 15:24:44
-updated: 2022-09-02 15:24:44
+updated: 2023-05-08 15:04:30
 toc: true
 thumbnail: /2022/09/02/使用-Clash-AdGuard-Home-在树莓派软路由上搭建广告屏蔽与透明代理服务器/raspberry-pi-foundation-vector-logo.svg
 ---
@@ -68,10 +68,10 @@ COMMIT
 # 新建 clash 链
 :clash - [0:0]
 
-# 将转发后的包源地址修改为本机地址
+# 内网 TCP 请求转发给 clash 链
 -A PREROUTING -s 192.168.0.0/16 -p tcp -j clash
 
-# 内网 TCP 请求转发给 clash 链
+# 将转发后的包源地址修改为本机地址
 -A POSTROUTING -s 192.168.0.0/16 -o eth0 -j MASQUERADE
 
 # 访问本机和内网不经过 clash
@@ -109,6 +109,8 @@ COMMIT
 [RFC 4890](https://www.rfc-editor.org/rfc/rfc4890) 给出了针对 ICMPv6 的防火墙配置建议，由于时间有限未能细读与实现。
 
 [RFC 5095](https://www.rfc-editor.org/rfc/rfc5095) 废除了 Type 0 Routing Headers，防火墙中给予了实现。
+
+**Updated 2023-05-08：** 在之前配置完 IPv6 NAT 网络后，并没有为 IPv6 配置代理。随着 IPv6 的不断推广，部分被墙网站出现了使用本地代理可以访问，透明代理无法访问的情况，包括但不限于 v2ex.com，Youtube 的视频播放等，于是也为 IPv6 配置了代理。原本使用的 Clash Premium 2022.08.26 版本的 IPv6 代理似乎有 bug，需要进行升级。由于想继续使用 AdGuardHome 统计 DNS 查询信息，故需要依赖 Clash 的 redir-host 功能（该功能在 Premium 2023.02.16 版本被弃用），因此选用 Clash Premium 2023.01.29 版本。巧合的是，Premium 2023.01.29 版本将核心版本升级到了 1.13.0，该版本添加了对 IPv6 REDIRECT 的支持（[#2473](https://github.com/Dreamacro/clash/pull/2473)），这让 IPv6 的代理成为了可能。相关改动已同步到下方规则文件中。
 
 ```bash /etc/iptables/rules.v6
 *filter
@@ -148,9 +150,20 @@ COMMIT
 :INPUT ACCEPT [0:0]
 :POSTROUTING ACCEPT [0:0]
 :OUTPUT ACCEPT [0:0]
+:clash - [0:0]
 
-# SNAT
+# 内网 TCP 请求转发给 clash 链
+-A PREROUTING -s fd22:41b7:e060::/64 -p tcp -j clash
+
+# 将转发后的包源地址修改为本机地址
 -A POSTROUTING -s fd22:41b7:e060::/64 -o eth0 -j MASQUERADE
+
+# 访问内网和校园网不经过 clash
+-A clash -d fd22:41b7:e060::/64 -j RETURN
+-A clash -d 2402:f000::/32 -j RETURN
+
+# 其余请求重定向至 clash 端口
+-A clash -p tcp -j REDIRECT --to-ports 17891
 
 COMMIT
 ```
