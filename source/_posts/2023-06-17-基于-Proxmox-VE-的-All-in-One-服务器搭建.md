@@ -1,0 +1,665 @@
+---
+title: 基于 Proxmox VE 的 All in One 服务器搭建
+tags:
+  - PVE
+  - 软路由
+categories:
+  - 折腾
+date: 2023-06-17 19:12:49
+updated: 2023-06-27 21:42:47
+toc: true
+thumbnail: /2023/06/17/基于-Proxmox-VE-的-All-in-One-服务器搭建/proxmox-logo.svg
+---
+
+树莓派挂在宿舍当软路由已经两年了，大部分情况下都挺好用，透明代理体验也还算尚可。
+
+然而由于使用的 USB 无线网卡驱动支持较差，无线峰值速率只能跑到 200+ Mbps，且不大稳定。并且树莓派性能不高，无法开设一些高负载服务。另外，树莓派作为路由常年开启，需要考虑散热问题，虽然给使用的小风扇写了启停功能，但是启动运转时还是会有一定的噪音，较为恼人。
+
+<!-- more -->
+
+正好快到暑假了，需要开设一台 MC 服务器，于是打算换用一台较高性能的软路由，再配合 Wi-Fi 6 无线路由器作为 AP，提供高速率、高稳定性的有线无线网络接入。
+
+## 整体配置概览
+
+### 软路由
+
+选用畅网奔腾 8505 软路由，1 大核 + 4 小核，大核的单核性能较高，CPU-Z 单核跑分相比我的笔记本（i5-1135G7）高出约 40%，可以用来开设一些吃单核性能的服务。
+
+内存使用了两条光威 8GB DDR4 3200 内存，时序 CL-22-22-22-52。使用 16 GB 内存也主要是为了开设 MC 服务器考虑。
+
+存储方面安装了西数 SN570 1T 固态作为系统盘，也暂时承担一部分文件存储功能。
+
+作为一台路由器，这台软路由有 6 个 Intel i226-V 2.5G 网卡，即使以后有更多设备需要有线接入，一定程度上也不需要增设交换机。
+
+功耗方面，实测待机时输入功率约为 10 W。
+
+温度方面，室温 24 度环境下，不加风扇待机时 CPU 约 40 度，NVME 固态约 50 度，软路由表面摸起来较热；加上赠送的 USB 12cm 风扇吹顶部铝制散热片后，待机时 CPU 约 30 度，NVME 固态约 40 度，外壳很凉快。
+
+### 无线 AP
+
+目前廉价的 Wi-Fi 6 路由器均使用千兆有线网口，单口有线速率甚至可能不及无线速率，故考虑需要能和软路由之间做链路聚合提高内网性能。
+
+调查后发现，TP-Link 系列的路由器似乎原厂固件就有着端口聚合功能，于是其子品牌水星也有着相应的功能。
+
+于是选用水星 X306G 路由器，AX3000 规格，计划只使用其 5G 频段 Wi-Fi 和端口聚合功能，运行在 AP 模式。
+
+## 安装和调试 PVE
+
+### 安装
+
+参考官方教程或网上教程，一路 next 即可。
+
+其中将 ETH5 对应的网卡设为管理口，静态 IP 设为 `192.168.22.100`（22 网段）。
+
+### 更换内核版本
+
+由于 8505 CPU 是大小核架构，建议使用较新的内核获取大小核调度优化。
+
+先换源，参考：<https://mirrors.tuna.tsinghua.edu.cn/help/proxmox/>，并删除企业源：`rm /etc/apt/sources.list.d/pve-install-repo.list`
+
+`apt update` 后搜索可用的内核版本，我这儿选择 6.2 版本：`apt install pve-kernel-6.2`，安装完重启后生效。
+
+可以使用 `proxmox-boot-tool` 管理安装的以及用于启动的 kernel 版本。
+
+### 管理页面添加温度显示
+
+偷懒使用了恩山论坛的脚本，添加了温度，CPU频率，硬盘信息的显示：<https://www.right.com.cn/forum/thread-6754687-1-1.html>
+
+### 删除 lvm-thin 并扩容 lvm
+
+由于使用单盘搭建 All in One 服务器，计划在 PVE 系统中使用 samba 共享数据文件，因此需要较大的 lvm 空间。同时，由于不需要开大量的虚拟机，也用不到 lvm-thin 的特性。故将 lvm-thin 的空间全部合入 lvm 中。
+
+参考：<https://foxi.buduanwang.vip/virtualization/pve/1434.html/>
+
+删除 lvm-thin：`lvremove /dev/pve/data`
+
+扩容 lvm：`lvextend -rl +100%FREE /dev/pve/root`
+
+### 部署 samba
+
+安装：`apt update && apt install samba`
+
+添加用户：`useradd thx`
+
+将用户添加到 samba：`smbpasswd -a thx`
+
+编辑 samba 配置文件 `/etc/samba/smb.conf`，添加共享文件夹的配置：
+
+``` plain
+[RaspCloud]
+    path = /data/RaspCloud
+    writeable = yes
+    create mask = 0777
+    directory mask = 1777
+    public = yes
+    guest ok = yes
+
+[Private]
+    path = /data/Private
+    writeable = yes
+    create mask = 0744
+    directory mask = 1744
+    public = no
+    guest ok = no
+    valid users = thx
+    browseable = yes
+```
+
+其中 `/data/RaspCloud` 为公开共享目录，内部有 `read-only` 目录通过改变目录所有者来限制 guest 的写入。
+
+`/data/Private` 为私密目录，使用白名单限制访问用户。
+
+### 更改 CPU 电源策略
+
+作为一个桌面服务器，需要考虑到功耗与发热的问题。
+
+参考：<https://pve.sqlsec.com/4/6/>
+
+``` plain
+# 查看支持的 CPU 电源模式
+cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors
+
+# 查看当前的 CPU 电源模式
+cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
+```
+
+| 电源模式     | 解释说明                                                     |
+| :----------- | :----------------------------------------------------------- |
+| performance  | 性能模式，将 CPU 频率固定工作在其支持的较高运行频率上，而不动态调节。 |
+| userspace    | 系统将变频策略的决策权交给了用户态应用程序，较为灵活。       |
+| powersave    | 省电模式，CPU 会固定工作在其支持的最低运行频率上。           |
+| ondemand     | 按需快速动态调整 CPU 频率，没有负载的时候就运行在低频，有负载就高频运行。 |
+| conservative | 与 ondemand 不同，平滑地调整 CPU 频率，频率的升降是渐变式的，稍微缓和一点。 |
+| schedutil    | 负载变化回调机制，后面新引入的机制，通过触发 schedutil `sugov_update` 进行调频动作。 |
+
+安装工具：`apt install cpufrequtils`
+
+设为 `ondemand` 模式：`cpufreq-set -g ondemand`
+
+### 无显示器启动问题
+
+发现如果不接显示器，则无法正常启动。初步判断在启动 grub 或之后出现问题。
+
+然而，对 BIOS 和 grub 配置文件做各种修改之后也无法解决问题。
+
+最终打算网上买个 HDMI 诱骗器插上得了。
+
+插上后也没用。
+
+经仔细排查（偶然将接地良好的显示器的 Type-C 线的外壳接触到软路由 Type-C 口的外壳上，发现问题就消失了），发现是供电接地问题。
+
+先前为了监测功耗，我将电源的 DC 转为了 USB 母口，插上了 USB 电压电流测量设备，再将测量设备的 USB 口转为 DC 口，接到软路由的 DC 供电口。在这个过程中可能丢失了地线。
+
+直接接电源就不再有问题。
+
+## 基于 LXC 安装 OpenWrt
+
+LXC 开销小，故尝试使用 LXC 安装 OpenWrt
+
+### 安装 OpenWrt
+
+安装过程参考：<https://virtualizeeverything.com/2022/05/23/setting-openwrt-in-proxmox-lxc/>
+
+下载地址：<https://downloads.openwrt.org/>
+
+我选择了 20.03.5 版本：<https://downloads.openwrt.org/releases/22.03.5/targets/x86/64/>
+
+下载 `rootfs.tar.xz` 即可，可以在下载时选择哈希校验。
+
+创建容器的文档：<https://pve.proxmox.com/pve-docs/chapter-pct.html#pct_settings>
+
+似乎由于 Web 页面无法添加 `--ostype unmanaged` 参数，需要进入命令行创建：
+
+``` plain
+pct create 101 /var/lib/vz/template/cache/openwrt-22.03.5-x86-64-rootfs.tar.gz --arch amd64 --hostname RaspCloud --rootfs local:1 --memory 1024 --cores 6 --cpuunits 200 --ostype unmanaged --unprivileged 1
+```
+
+然后在 Web UI 中添加一个虚拟网卡 veth0，桥接到 PVE 网桥 vmbr0 上，用于 OpenWrt 和 PVE 的交互。
+
+此时连接在管理口上的设备便和 OpenWrt 连在同一个网桥上了，就可以通过这个虚拟网卡的地址访问 OpenWrt 了。
+
+有可能启动后 veth0 并没被正确配置，可以手动 up 之后使用 IPv6 地址访问。
+
+然后到配置文件 `/etc/pve/lxc/101.conf` 里添加直通网卡，比如：
+
+``` conf
+lxc.net.0.type: phys
+lxc.net.0.link: enp2s0    --- 需要使用的 host 中的网卡名
+lxc.net.0.name: eth0      --- LXC 中显示的网卡名
+lxc.net.0.flags: up
+```
+
+需要注意 net.id 的 id 不能和 Web UI 中添加的相同。
+
+最终的 conf 文件：
+
+``` conf
+arch: amd64
+cores: 6
+cpuunits: 200
+hostname: RaspCloud
+memory: 1024
+net0: name=veth0,bridge=vmbr0,firewall=1,hwaddr=92:81:93:06:8A:7E,type=veth
+ostype: unmanaged
+rootfs: local:101/vm-101-disk-0.raw,size=1G
+swap: 512
+unprivileged: 1
+lxc.net.5.type: phys
+lxc.net.5.link: enp2s0
+lxc.net.5.name: eth0
+lxc.net.5.flags: up
+lxc.net.6.type: phys
+lxc.net.6.link: enp3s0
+lxc.net.6.name: eth1
+lxc.net.6.flags: up
+lxc.net.7.type: phys
+lxc.net.7.link: enp4s0
+lxc.net.7.name: eth2
+lxc.net.7.flags: up
+lxc.net.8.type: phys
+lxc.net.8.link: enp5s0
+lxc.net.8.name: eth3
+lxc.net.8.flags: up
+lxc.net.9.type: phys
+lxc.net.9.link: enp6s0
+lxc.net.9.name: eth4
+lxc.net.9.flags: up
+```
+
+### 配置 OpenWrt
+
+#### 连接互联网
+
+由于我需要 OpenWrt 通过 PVE 管理口来访问互联网，所以需要先为 veth0 配置一些上网功能。
+
+添加 Interface veth0，类型为静态地址，网卡设为 veth0，配置好对应的地址，网关和 DNS 服务器地址即可。
+
+之后应该就可以访问网络了。
+
+#### 换源
+
+参考：<https://mirrors.tuna.tsinghua.edu.cn/help/openwrt/>
+
+#### 添加中文
+
+``` bash
+opkg update
+opkg install luci-i18n-base-zh-cn
+```
+
+#### 更改主题
+
+不大喜欢 OpenWrt 的默认主题，换为 [Argon](https://github.com/jerrykuku/luci-theme-argon/)
+
+下载对应的 ipk：`https://github.com/jerrykuku/luci-theme-argon/releases/download/v2.3.1/luci-theme-argon_2.3.1_all.ipk`
+
+然后安装：
+
+``` bash
+opkg install luci-compat
+opkg install luci-lib-ipkg
+opkg install luci-theme-argon*.ipk
+```
+
+#### 配置路由功能
+
+启动后，只有 wan 和 wan6 两个 Interface，对应 eth0 网口（device）。
+
+计划把其它网口都划入 LAN 中。
+
+首先添加网桥设备 `br-lan`，把网口都加上去。
+
+然后添加 `lan` 接口，使用静态地址，把 `br-lan` 加上去，配置地址即可。
+
+然后发现，似乎 dnsmasq 出现了些问题，无法正常启动。
+
+根据 <https://github.com/openwrt/openwrt/issues/9064> 中的方法，`opkg remove procd-ujail` 可以解决。
+
+dnsmasq 正常后，在接口中配置 DHCP / DNS 的相关配置，然后 lan 口上接的设备就能获取到分配的地址了。
+
+IPv6 默认并不会配置 SNAT，需要做一些手动配置，参考：<https://openwrt.org/docs/guide-user/network/ipv6/ipv6.nat6>
+
+先启用 IPv6 masquerading，其中 `zone[1]` 为 wan 域：
+
+``` bash
+uci set firewall.@zone[1].masq6="1"
+uci commit firewall
+/etc/init.d/firewall restart
+```
+
+然后关闭 wan6 口的 sourcefilter：
+
+``` bash
+uci set network.wan6.sourcefilter="0"
+uci commit network
+/etc/init.d/network restart
+```
+
+#### 配置 OpenClash
+
+先卸载 dnsmasq：
+
+``` bash
+opkg remove dnsmasq
+mv /etc/config/dhcp /etc/config/dhcp.bak
+```
+
+再按照发布页的说明，先安装依赖，再下载安装 ipk 即可：<https://github.com/vernesong/OpenClash/releases>
+
+之后按个人喜好配置即可，我选用的是 Meta 核心的 redir-host 模式，之后另开一篇记录吧。
+
+可以将校园网网段设为绕过，减少校内网络访问开销：
+
+IPv4：
+
+``` plain
+59.66.0.0/16
+101.5.0.0/16
+101.6.0.0/16
+118.229.0.0/19
+166.111.0.0/16
+183.172.0.0/15
+202.112.39.2/32
+219.223.168.0/21
+219.223.176.0/20
+```
+
+IPv6：
+
+``` plain
+2402:f000::/32
+```
+
+或者可以打开 `实验性：绕过中国大陆 IP` 功能，减少国内网络访问开销。
+
+#### 配置校园网认证
+
+使用 [GoAuthing](https://github.com/z4yx/GoAuthing)。
+
+新版本的 OpenWrt 配置起来似乎有些不一样的地方，参考 <https://github.com/z4yx/GoAuthing/issues/30> 进行修改。
+
+将 `goauthing@` 脚本放到 `/etc/init.d/goauthing` 目录下，并 `chmod +x`。
+
+``` shell /etc/init.d/goauthing
+#!/bin/sh /etc/rc.common
+# Authenticating utility for auth.tsinghua.edu.cn
+# This init script is used explicitly with OpenWRT
+
+USE_PROCD=1
+START=98
+PROG="/usr/bin/goauthing"
+SERV=goauthing  # UCI config at /etc/config/goauthing
+
+start_instance() {
+  local config=$1
+  local username password
+  config_get username $config username
+  config_get password $config password
+  local args="-u $username -p $password"
+
+  "$PROG" $args deauth
+  "$PROG" $args auth
+  "$PROG" $args login
+
+  procd_open_instance
+  procd_set_param command "$PROG"
+  procd_append_param command $args online
+  procd_set_param stderr 1
+  procd_set_param respawn
+  procd_close_instance
+}
+
+logout() {
+  local config=$1
+  local username password
+  config_get username $config username
+  config_get password $config password
+  local args="-u $username -p $password"
+
+  "$PROG" $args logout
+}
+
+start_service() {
+  config_load "$SERV"
+  config_foreach start_instance "$SERV"
+}
+
+stop_service() {
+  config_load "$SERV"
+  config_foreach logout "$SERV"
+}
+```
+
+然后下载 <https://mirrors.tuna.tsinghua.edu.cn/github-release/z4yx/GoAuthing/LatestRelease/auth-thu.linux.x86_64>，并移动至脚本中填写的位置（默认为 `/usr/bin/goauthing`）。
+
+然后配置并启动服务：
+
+``` bash
+touch /etc/config/goauthing
+uci add goauthing goauthing
+uci set goauthing.@goauthing[0].username='<YOUR-TUNET-ACCOUNT-NAME>'
+uci set goauthing.@goauthing[0].password='<YOUR-TUNET-PASSWORD>'
+uci commit
+
+/etc/init.d/goauthing enable
+/etc/init.d/goauthing start
+```
+
+似乎 OpenClash 配得有些问题，启动时无法进行认证，检查发现，虽然已经关闭了 `路由本机代理`，但是还是会 nftables 中添加处理 Output 链的规则，见 <https://github.com/vernesong/OpenClash/blob/9ee0f02ed7615a62f960c9ee2f951dd1b47e2411/luci-app-openclash/root/etc/init.d/openclash#LL1649C1-L1672C9>：
+
+``` bash
+if [ "$enable_redirect_dns" != "2" ] || [ "$router_self_proxy" = "1" ]; then
+    nft 'add chain inet fw4 openclash_output' 2>/dev/null
+    nft 'flush chain inet fw4 openclash_output' 2>/dev/null
+    ...
+    nft add rule inet fw4 openclash_output ip protocol tcp skuid != 65534 counter redirect to "$proxy_port" 2>/dev/null
+    nft 'add chain inet fw4 nat_output { type nat hook output priority -1; }' 2>/dev/null
+    nft 'add rule inet fw4 nat_output ip protocol tcp counter jump openclash_output' 2>/dev/null
+fi
+```
+
+这里的判断中 **或** 上了不使用 Dnsmasq 转发，所以在我的工况下会被启用。暂时未明白为何要这样，故提了 Issue：<https://github.com/vernesong/OpenClash/issues/3354>。
+
+两天后作者在 [d499374](https://github.com/vernesong/OpenClash/commit/d49937415c00c6d3f2519a382cd13be54d531e8b) 中修复了该 bug，发布于 `0.45.125` 版本中，等待合入 master。
+
+#### 配置链路聚合 AP
+
+另购置了一台 Wi-Fi 6 无线路由器作为 AP，支持 2x2 MU-MIMO，160 MHz 频宽，理论带宽可达 2402 Mbps。
+
+然而，路由器上只有四个千兆口，连接软路由后跑不到这么高。
+
+不过，这款路由器支持两个端口链路聚合，故尝试配置一下。
+
+首先在路由器上设置两个端口为聚合口，提示：
+
+> 端口聚合使用IEEE 802.3ad动态聚合模式，请确保对端设备支持并配置为动态聚合模式。
+
+然后在 OpenWrt 上安装需要的软件包：`opkg install kmod-bonding proto-bonding luci-proto-bonding`
+
+然后将以下内容添加到 `/etc/rc.local` 的 `exit 0` 前：
+
+``` bash
+ip link add bond-lan type bond mode 802.3ad # 添加 bond 类型的虚拟接口 名称为 bond-lan
+ip link set eth3 down
+ip link set eth4 down
+ip link set eth3 type bond_slave            # 配置网卡模式
+ip link set eth4 type bond_slave
+ip link set eth3 master bond-lan            # 加入名称为 bond-lan 的 bond 类型网卡
+ip link set eth4 master bond-lan
+ip link set bond-lan up                     # 启动该网卡
+ip link set eth3 up
+ip link set eth4 up
+```
+
+将 `eth3` 和 `eth4` 从原来的 `br-lan` 中移除，添加上 `bond-lan` 即可。
+
+实测无线可以跑到 1.6 Gbps 左右。
+
+#### 配置防火墙
+
+官方原版 OpenWrt 默认有一套还可以的防火墙策略，简略微调即可。
+
+#### 配置 AdGuard Home
+
+``` bash
+opkg update
+opkg install adguardhome
+```
+
+#### 配置端口转发
+
+使用 OpenWrt 默认的端口转发时遇到了两个问题：
+
+1. 未能成功内网端口转发
+2. 不支持 IPv6 NAT 下的端口转发
+
+选择使用 socat 来实现端口转发。
+
+安装：
+
+``` bash
+opkg update
+opkg install socat
+```
+
+然后配置端口转发。
+
+例如，配置名为 `mc-tcp` 的策略，开启，监听本机所有地址的 25565 端口并转发到 192.168.22.3:25565 的配置如下（`fork` 允许多个连接，`reuseaddr` 允许 socket 的快速重用，`TCP6-LISTEN` 也同时监听 IPv4）：
+
+``` bash
+uci set socat.mc-tcp=socat
+uci set socat.mc-tcp.enable=1
+uci set socat.mc-tcp.SocatOptions='TCP6-LISTEN:25565,fork,reuseaddr TCP:192.168.22.3:25565'
+uci commit
+```
+
+UDP 也类似：
+
+``` bash
+uci set socat.mc-udp=socat
+uci set socat.mc-udp.enable=1
+uci set socat.mc-udp.SocatOptions='UDP6-LISTEN:25565,fork,reuseaddr UDP:192.168.22.3:25565'
+uci commit
+```
+
+然后重启 socat 服务即可生效：`/etc/init.d/socat restart`
+
+对外网开放还需在防火墙中允许对应端口的输入。
+
+#### 配置 DDNS
+
+```bash
+opkg install ddns-scripts-cloudflare luci-i18n-ddns-zh-cn
+```
+
+## 基于 LXC 的其它功能服务器
+
+其它杂七杂八的服务以及 Docker 就另外开在一个虚拟机上吧。
+
+选用 Debian 12 系统，可以直接从 CT 模板中下载。
+
+参考 <https://pve.proxmox.com/wiki/Unprivileged_LXC_containers#Using_local_directory_bind_mount_points>，挂载宿主机的共享目录：`pct set 100 -mp0 /host/dir,mp=/container/mount/point`
+
+添加一个虚拟网卡 `eth0` 桥接到 vmbr0 上，IPv4 选择 DHCP 接收 OpenWrt 的地址分发；而如果 IPv6 选择 DHCP 的话，DHCPv6 是不会通告默认路由的，所以建议选择 SLAAC。
+
+### 初始配置
+
+换源，参考：<https://mirrors.tuna.tsinghua.edu.cn/help/debian/>
+
+添加 sudo，先 `apt install sudo`，再 `echo "username  ALL=(ALL) ALL" | sudo tee /etc/sudoers.d/username`
+
+默认下终端可能会有乱码，需要配置 UTF-8 语言，`sudo dpkg-reconfigure locales` 然后选中 `en_US.UTF-8` 即可。
+
+### 安装 Docker
+
+由于并不想在 PVE 中直接装 Docker，故在 Debian 虚拟机中安装 Docker。
+
+参考：
+
+- <https://docs.docker.com/engine/install/debian/#install-using-the-convenience-script>
+- <https://yeasy.gitbook.io/docker_practice/install/debian>
+
+安装：
+
+``` bash
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+```
+
+加入 Docker 用户组，在无 root 权限下使用 Docker：`sudo usermod -aG docker $USER`
+
+验证安装正确性：`docker run --rm hello-world`
+
+如没有方便的网络接入，配置镜像参考：<https://yeasy.gitbook.io/docker_practice/install/mirror>
+
+在 LXC 容器启动后，Docker 会过一两分钟才会启动，暂时不知道原因为何。
+
+### Docker 启用 IPv6 支持
+
+由于挂的 PT 需要有 IPv6 接入，故需要给 Docker 开启 IPv6。
+
+参考：<https://docs.docker.com/config/daemon/ipv6/>
+
+编辑配置文件：
+
+``` json /etc/docker/daemon.json
+{
+  "experimental": true,
+  "ip6tables": true
+}
+```
+
+然后重启 Docker：`sudo systemctl restart docker`
+
+启动容器时，需要额外的配置。如果使用 Docker Compose，则添加如下内容，并在对应 service 配置中添加 networks 即可：
+
+``` yml
+networks:
+  ip6net:
+    enable_ipv6: true
+    subnet: 2001:0DB8::/112
+```
+
+`netstat -tunlp` 可以查看监听端口，若对应的端口只有 tcp6 在监听也不用慌张，若 `cat /proc/sys/net/ipv6/bindv6only` 为 0 则表明已在双栈上监听，参考（<https://unix.stackexchange.com/questions/496137/does-80-in-netstat-output-means-only-ipv6-or-ipv6ipv4>）
+
+### 配置 PT 客户端
+
+使用 [linuxserver/transmission](https://hub.docker.com/r/linuxserver/transmission) Docker 镜像。
+
+使用 Docker Compose 来配置容器，按说明编写配置文件：
+
+``` yml docker-compose.yml
+---
+version: "2.1"
+services:
+  transmission:
+    image: lscr.io/linuxserver/transmission:latest
+    container_name: transmission
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Shanghai
+      - TRANSMISSION_WEB_HOME=/config/transmission-web-control/src #optional
+      - USER=thx #optional
+      - FILE__PASS=/config/password #optional
+      - WHITELIST= #optional
+      - PEERPORT= #optional
+      - HOST_WHITELIST= #optional
+    volumes:
+      - /home/thx/Service/transmission/config:/config
+      - /data/RaspCloud/read-only/PT:/downloads
+      - /data/RaspCloud/read-only/PT/torrentwatch:/watch
+    ports:
+      - 9091:9091
+      - 51413:51413
+      - 51413:51413/udp
+    restart: unless-stopped
+    networks:
+      - ip6net
+networks:
+  ip6net:
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 2001:0DB8::/112
+```
+
+其中 UID / GID 可以参考 `id $user` 的结果设置。
+
+生成密钥文件时不能有行末符，可以这样生成：`echo -n password_in_clear_text > password`
+
+Web UI 使用 [transmission-web-control](https://github.com/ronggang/transmission-web-control)，在 `/config` 对应的目录下 git clone 即可。
+
+创建 container 并启动后台运行：`docker compose up -d`
+
+停止并删除 container 和对应的网络：`docker compose down`
+
+启动 / 停止 对应的 container：`docker compose start` / `docker compose stop`
+
+迁移只需要将之前的 `config` 目录移过来即可，如果时裸机安装，目录可能在 `/var/lib/transmission-daemon/info`
+
+### 配置 MC 服务器
+
+#### 安装 Java 8
+
+由于该整合包版本需要 Java 8，而 Debian 官方源中没有，故使用第三方源安装。
+
+准备工作：`sudo apt install apt-transport-https ca-certificates wget dirmngr gnupg software-properties-common`
+
+添加第三方源：
+
+``` bash
+wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | sudo tee /etc/apt/trusted.gpg.d/adoptopenjdk.asc
+sudo add-apt-repository --yes https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/
+```
+
+由于 adoptopenjdk 可能还没加上 bookworm 源，可能需要手动将源中的 `bookworm` 改为 `bullseye`。
+
+安装 Java 8 JRE：
+
+``` bash
+sudo apt update
+sudo apt install adoptopenjdk-8-hotspot-jre
+```
+
+#### 添加为服务
