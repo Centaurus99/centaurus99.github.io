@@ -468,10 +468,40 @@ opkg install adguardhome
 
 #### 配置端口转发
 
-使用 OpenWrt 默认的端口转发时遇到了两个问题：
+两种方式，一种是基于 iptables 实现，另一种是使用 socat 来转发。
 
-1. 未能成功内网端口转发
-2. 不支持 IPv6 NAT 下的端口转发
+##### 基于 iptables 实现
+
+OpenWrt 默认的端口转发基于 iptables / nftables 实现，然而，配置后发现，在内网无法使用外网地址访问对应端口，初步探索后推测是 NAT 环回时出现问题。
+
+于是在 nftables 中进行调试。
+
+###### nftables 调试方法
+
+先新建一个表为符合规则的包启用跟踪调试：
+
+``` bash
+nft add table inet trace_debug
+nft add chain inet trace_debug trace_pre { type filter hook prerouting priority -200000; }
+nft insert rule inet trace_debug trace_pre ip saddr 192.168.22.118 ip daddr ??.??.??.?? tcp limit rate 1/second meta nftrace set 1
+```
+
+然后 `nft monitor trace` 就可以跟踪了。
+
+###### 结果分析与问题解决
+
+包在 `prerouting policy accept` 后消失了。
+
+一番摸索后发现，当对应网卡（`br-lan`）开启混杂模式后，就能正常工作了。
+
+怀疑是 prerouting 后发现目标地址为本地链路地址，于是就修改了目的 mac 地址，导致非混杂模式的网卡将其丢弃。
+
+##### 使用 socat
+
+**Updated 2023.06.29：** 使用 socat 遇到了一些问题，故弃用：
+
+- 会修改源地址，丢失地址数据
+- UDP 的转发使用 fork 参数存在线程泄漏问题，似乎每个 UDP 包都会 fork 出一个进程且不释放，导致产生大量进程占满内存
 
 选择使用 socat 来实现端口转发。
 
