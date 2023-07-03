@@ -332,6 +332,27 @@ IPv6：
 
 或者可以打开 `实验性：绕过中国大陆 IP` 功能，减少国内网络访问开销。
 
+##### 遇上 OpenClash 的一个 bug
+
+似乎 OpenClash 配得有些问题，启动时无法进行认证，检查发现，虽然已经关闭了 `路由本机代理`，但是还是会 nftables 中添加处理 Output 链的规则，见 <https://github.com/vernesong/OpenClash/blob/9ee0f02ed7615a62f960c9ee2f951dd1b47e2411/luci-app-openclash/root/etc/init.d/openclash#LL1649C1-L1672C9>：
+
+``` bash
+if [ "$enable_redirect_dns" != "2" ] || [ "$router_self_proxy" = "1" ]; then
+    nft 'add chain inet fw4 openclash_output' 2>/dev/null
+    nft 'flush chain inet fw4 openclash_output' 2>/dev/null
+    ...
+    nft add rule inet fw4 openclash_output ip protocol tcp skuid != 65534 counter redirect to "$proxy_port" 2>/dev/null
+    nft 'add chain inet fw4 nat_output { type nat hook output priority -1; }' 2>/dev/null
+    nft 'add rule inet fw4 nat_output ip protocol tcp counter jump openclash_output' 2>/dev/null
+fi
+```
+
+这里的判断中 **或** 上了不使用 Dnsmasq 转发，所以在我的工况下会被启用。暂时未明白为何要这样，故提了 Issue：<https://github.com/vernesong/OpenClash/issues/3354>。
+
+两天后作者在 [d499374](https://github.com/vernesong/OpenClash/commit/d49937415c00c6d3f2519a382cd13be54d531e8b) 中修复了该 bug，发布于 `0.45.125` 版本中，等待合入 master。
+
+**Updated 2023.07.02：** 随着 `0.45.128` 版本的发布，该问题已得到修复。
+
 #### 配置校园网认证
 
 使用 [GoAuthing](https://github.com/z4yx/GoAuthing)。
@@ -346,7 +367,7 @@ IPv6：
 # This init script is used explicitly with OpenWRT
 
 USE_PROCD=1
-START=98
+START=96
 PROG="/usr/bin/goauthing"
 SERV=goauthing  # UCI config at /etc/config/goauthing
 
@@ -357,6 +378,7 @@ start_instance() {
   config_get password $config password
   local args="-u $username -p $password"
 
+  sleep 10 # Wait for link up
   "$PROG" $args deauth
   "$PROG" $args auth
   "$PROG" $args login
@@ -390,6 +412,8 @@ stop_service() {
 }
 ```
 
+其中更改了启动优先级，添加了 `sleep 10` 来等待 wan 口配置完成，否则会因为无法完成 auth / login 就直接进入 online 守护程序，从而一直无法完成登录认证。
+
 然后下载 <https://mirrors.tuna.tsinghua.edu.cn/github-release/z4yx/GoAuthing/LatestRelease/auth-thu.linux.x86_64>，并移动至脚本中填写的位置（默认为 `/usr/bin/goauthing`）。
 
 然后配置并启动服务：
@@ -404,23 +428,6 @@ uci commit
 /etc/init.d/goauthing enable
 /etc/init.d/goauthing start
 ```
-
-似乎 OpenClash 配得有些问题，启动时无法进行认证，检查发现，虽然已经关闭了 `路由本机代理`，但是还是会 nftables 中添加处理 Output 链的规则，见 <https://github.com/vernesong/OpenClash/blob/9ee0f02ed7615a62f960c9ee2f951dd1b47e2411/luci-app-openclash/root/etc/init.d/openclash#LL1649C1-L1672C9>：
-
-``` bash
-if [ "$enable_redirect_dns" != "2" ] || [ "$router_self_proxy" = "1" ]; then
-    nft 'add chain inet fw4 openclash_output' 2>/dev/null
-    nft 'flush chain inet fw4 openclash_output' 2>/dev/null
-    ...
-    nft add rule inet fw4 openclash_output ip protocol tcp skuid != 65534 counter redirect to "$proxy_port" 2>/dev/null
-    nft 'add chain inet fw4 nat_output { type nat hook output priority -1; }' 2>/dev/null
-    nft 'add rule inet fw4 nat_output ip protocol tcp counter jump openclash_output' 2>/dev/null
-fi
-```
-
-这里的判断中 **或** 上了不使用 Dnsmasq 转发，所以在我的工况下会被启用。暂时未明白为何要这样，故提了 Issue：<https://github.com/vernesong/OpenClash/issues/3354>。
-
-两天后作者在 [d499374](https://github.com/vernesong/OpenClash/commit/d49937415c00c6d3f2519a382cd13be54d531e8b) 中修复了该 bug，发布于 `0.45.125` 版本中，等待合入 master。
 
 #### 配置链路聚合 AP
 
@@ -457,14 +464,7 @@ ip link set eth4 up
 
 #### 配置防火墙
 
-官方原版 OpenWrt 默认有一套还可以的防火墙策略，简略微调即可。
-
-#### 配置 AdGuard Home
-
-``` bash
-opkg update
-opkg install adguardhome
-```
+官方原版 OpenWrt 默认有一套防火墙策略，简略微调即可。
 
 #### 配置端口转发
 
@@ -541,6 +541,43 @@ uci commit
 ```bash
 opkg install ddns-scripts-cloudflare luci-i18n-ddns-zh-cn
 ```
+
+#### 配置 AdGuard Home
+
+安装 AdGuard Home：
+
+``` bash
+opkg update
+opkg install adguardhome
+```
+
+在 DHCP/DNS 的高级设置中，将 DNS 服务器端口改为 53 以外的端口，如 5353。
+
+然后登入 <http://ip:3000> 配置 AdGuard Home，将上游 DNS 服务器设为 OpenClash 设置的 DNS 服务地址，并停用 OpenClash 的 DNS 劫持。
+
+然后应该就可以开始运作了，再添加屏蔽列表即可。
+
+如果需要在 OpenClash 没有正常启动成功的情况下仍可以进行 DNS 服务，则需要设置 fallback DNS 服务器地址。然而目前 AdGuard Home 中并没有这个功能，相关功能 <https://github.com/AdguardTeam/AdGuardHome/issues/3701> 被设为了 `v0.108.0` 的目标，希望有生之年能等到 `v0.108.0` 出来获得这一功能。
+
+（也是因为这个原因，校园网的认证脚本需要配置为 OpenClash 启动完成后再进行认证，感觉怪怪的，所以也暂时放弃了 AdGuard Home）
+
+#### 配置 WireGuard
+
+安装 `WireGuard`：
+
+``` bash
+opkg update
+opkg install luci-i18n-wireguard-zh-cn
+```
+
+重启后，在添加接口中就可以找到 WireGuard VPN 了，
+
+#### 之后的计划
+
+- 配置内网 IP 的 DNS 服务
+- 配置 MosDNS 优化 DNS 解析（参考：<https://rushb.pro/article/router-dns.html>）
+- 配置 Grafana 可视化路由运行状态、MosDNS 运行数据等
+- 配置 UDP 转发以及游戏优化
 
 ## 基于 LXC 的其它功能服务器
 
@@ -693,3 +730,94 @@ sudo apt install adoptopenjdk-8-hotspot-jre
 ```
 
 #### 添加为服务
+
+### 配置蓝牙监听服务
+
+之前 [使用树莓派和小米蓝牙温湿度计可视化宿舍温湿度变化](/2022/09/07/使用树莓派和小米蓝牙温湿度计可视化宿舍温湿度变化) 中配置了蓝牙接收温湿度计数据，也把这个服务迁移过来。
+
+花费十元购入了 BR8651 芯片的 USB 蓝牙 5.1 适配器，据说该芯片在 Linux 下有驱动。
+
+#### 配置 LXC 的 USB 直通
+
+本来想在 LXC 容器中配置蓝牙服务，但是 `hciconfig` 会报错 `Can't open HCI socket.: Address family not supported by protocol`，查阅资料后发现，由于蓝牙将自身注册为网络接口，所以并不能像使用 USB 那样将蓝牙设备传给 LXC 容器，参考：<https://forum.proxmox.com/threads/assign-a-bluetooth-dongle-to-a-ct.67577/>。
+
+所以以下部分只是记录如何直通 USB 设备。
+
+参考：<https://medium.com/@konpat/usb-passthrough-to-an-lxc-proxmox-15482674f11d>
+
+直接在 LXC 中 `lsusb` 是可以看到各个 USB 设备的，但是无法使用。
+
+``` plain
+Bus 004 Device 002: ID 174c:3074 ASMedia Technology Inc. ASM1074 SuperSpeed hub
+Bus 004 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub
+Bus 003 Device 003: ID 05e3:0751 Genesys Logic, Inc. microSD Card Reader
+Bus 003 Device 004: ID 0a12:0001 Cambridge Silicon Radio, Ltd Bluetooth Dongle (HCI mode)
+Bus 003 Device 002: ID 174c:2074 ASMedia Technology Inc. ASM1074 High-Speed hub
+Bus 003 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
+Bus 002 Device 001: ID 1d6b:0003 Linux Foundation 3.0 root hub
+Bus 001 Device 001: ID 1d6b:0002 Linux Foundation 2.0 root hub
+```
+
+关注其中的 Bluetooth 设备，位于 `Bus 003 Device 004`。
+
+查看其主次设备号：
+
+``` plain
+root@pve:/etc/pve/lxc# ls -al /dev/bus/usb/003/004
+crw-rw-r-- 1 root root 189, 259 Jul  1 00:28 /dev/bus/usb/003/004
+```
+
+主设备号为 189，向配置文件中添加以下内容，将设备映射到容器内：
+
+``` conf /etc/pve/lxc/102.conf
+lxc.cgroup.devices.allow: c 189:* rwm
+lxc.mount.entry: /dev/bus/usb/003/004 dev/bus/usb/003/004 none bind,optional,create=file
+```
+
+或者直接将目录映射过去也行，防止设备名发生变化：
+
+``` conf /etc/pve/lxc/102.conf
+lxc.mount.entry: /dev/bus/usb/003 dev/bus/usb/003 none bind,optional,create=dir
+```
+
+如果容器中 `ls -al /dev/bus/usb/003/004` 权限不对（`nobody` / `nogroup`），可以在 PVE 中 `chown 100000:100000 /dev/bus/usb/003/004`，这样容器中就为 `root` 权限了。
+
+#### 在宿主机中直接配置蓝牙
+
+由于不想再单独开一台虚拟机，故打算在宿主机中直接运行蓝牙监听服务。
+
+正好宿主机中也有一个非 root 用户，使用这个用户来运行服务，尽量减小对系统的影响。
+
+先验证蓝牙功能是否正常，在 `bluetoothctl` 中运行
+
+``` bash
+menu scan
+transport le
+back
+scan on
+```
+
+应该能够看到一些广播和数据。
+
+（我这儿 `hcitool lescan` 会报错 `Set scan parameters failed: Input/output error`，参考 <https://stackoverflow.com/questions/70777475/hcitool-lescan-returns-an-i-o-error-on-manjaro> 发现如上使用 `bluetoothctl` 就能正常工作）
+
+##### 非特权安装 pip3
+
+``` bash
+wget https://bootstrap.pypa.io/get-pip.py
+python3 get-pip.py --user
+```
+
+如果报错 `ModuleNotFoundError: No module named 'distutils.cmd'`，则需要安装 `python3-distutils`
+
+##### 安装运行 MiTemperature2
+
+按照 [MiTemperature2](https://github.com/JsBergbau/MiTemperature2) 文档进行安装。
+
+安装 `bluepy` 前需要先安装 `libglib2.0-dev`
+
+安装 `pybluez` 时可能遇到 `error in PyBluez setup command: use_2to3 is invalid.` 的问题，参考 <https://github.com/pybluez/pybluez/issues/467>，先 `pip3 install setuptools==58` 再安装即可。
+
+遇到类似 <https://github.com/JsBergbau/MiTemperature2/issues/106> 的问题。
+
+以及类似 <https://stackoverflow.com/questions/75175755/not-seeing-ble-device-advertising-unless-set-bluetoothctl-transport-le> 的问题。
