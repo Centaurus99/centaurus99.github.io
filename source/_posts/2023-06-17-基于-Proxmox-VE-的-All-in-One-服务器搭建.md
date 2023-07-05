@@ -6,7 +6,7 @@ tags:
 categories:
   - 折腾
 date: 2023-06-17 19:12:49
-updated: 2023-06-27 21:42:47
+updated: 2023-07-05 23:20:06
 toc: true
 thumbnail: /2023/06/17/基于-Proxmox-VE-的-All-in-One-服务器搭建/proxmox-logo.svg
 ---
@@ -29,7 +29,7 @@ thumbnail: /2023/06/17/基于-Proxmox-VE-的-All-in-One-服务器搭建/proxmox-
 
 存储方面安装了西数 SN570 1T 固态作为系统盘，也暂时承担一部分文件存储功能。
 
-作为一台路由器，这台软路由有 6 个 Intel i226-V 2.5G 网卡，即使以后有更多设备需要有线接入，一定程度上也不需要增设交换机。
+作为一台路由器，这台软路由有 6 个 Intel i226-V 2.5G 网卡，即使以后有更多设备需要有线接入，也不一定需要增设交换机。
 
 功耗方面，实测待机时输入功率约为 10 W。
 
@@ -39,7 +39,7 @@ thumbnail: /2023/06/17/基于-Proxmox-VE-的-All-in-One-服务器搭建/proxmox-
 
 目前廉价的 Wi-Fi 6 路由器均使用千兆有线网口，单口有线速率甚至可能不及无线速率，故考虑需要能和软路由之间做链路聚合提高内网性能。
 
-调查后发现，TP-Link 系列的路由器似乎原厂固件就有着端口聚合功能，于是其子品牌水星也有着相应的功能。
+调查后发现，TP-Link 系列的路由器似乎原厂固件就有着端口聚合功能，其子品牌水星也有着相同的功能，且便宜几十元。
 
 于是选用水星 X306G 路由器，AX3000 规格，计划只使用其 5G 频段 Wi-Fi 和端口聚合功能，运行在 AP 模式。
 
@@ -85,7 +85,7 @@ thumbnail: /2023/06/17/基于-Proxmox-VE-的-All-in-One-服务器搭建/proxmox-
 
 编辑 samba 配置文件 `/etc/samba/smb.conf`，添加共享文件夹的配置：
 
-``` plain
+``` conf
 [RaspCloud]
     path = /data/RaspCloud
     writeable = yes
@@ -108,6 +108,19 @@ thumbnail: /2023/06/17/基于-Proxmox-VE-的-All-in-One-服务器搭建/proxmox-
 其中 `/data/RaspCloud` 为公开共享目录，内部有 `read-only` 目录通过改变目录所有者来限制 guest 的写入。
 
 `/data/Private` 为私密目录，使用白名单限制访问用户。
+
+如果需要在共享目录中软链接到系统里的其它目录中，则需要在 `[global]` 段中添加：
+
+``` conf /etc/samba/smb.conf
+[global]
+   follow symlinks = yes
+   wide links = yes
+   unix extensions = no
+```
+
+参考：<https://blog.csdn.net/humanking7/article/details/85058471>
+
+`smb.conf` 中的配置项可查阅：<https://www.samba.org/samba/docs/current/man-html/smb.conf.5.html>
 
 ### 更改 CPU 电源策略
 
@@ -152,6 +165,20 @@ cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
 
 直接接电源就不再有问题。
 
+### 挂载硬盘
+
+再接上一块老机械盘，用来挂 PT。
+
+安装好硬盘后，先使用 `fdisk -lu` 和 `blkid` 找到分区的 UUID，使用 UUID 进行挂载可以避免 `/dev/` 下设备名的改变导致的挂载问题。
+
+然后在 `/etc/fstab` 中添加挂载信息：
+
+``` plain /etc/fstab
+UUID=1f4a2672-3039-594b-808c-a5d3913b0fde /data/hdd ext4 defaults 0 0
+```
+
+然后 `mount -a` 生效，开机后也会自动挂载。
+
 ## 基于 LXC 安装 OpenWrt
 
 LXC 开销小，故尝试使用 LXC 安装 OpenWrt
@@ -166,7 +193,7 @@ LXC 开销小，故尝试使用 LXC 安装 OpenWrt
 
 下载 `rootfs.tar.xz` 即可，可以在下载时选择哈希校验。
 
-创建容器的文档：<https://pve.proxmox.com/pve-docs/chapter-pct.html#pct_settings>
+创建容器的 UI 的文档：<https://pve.proxmox.com/pve-docs/chapter-pct.html#pct_settings>
 
 似乎由于 Web 页面无法添加 `--ostype unmanaged` 参数，需要进入命令行创建：
 
@@ -200,8 +227,10 @@ cpuunits: 200
 hostname: RaspCloud
 memory: 1024
 net0: name=veth0,bridge=vmbr0,firewall=1,hwaddr=92:81:93:06:8A:7E,type=veth
+onboot: 1
 ostype: unmanaged
-rootfs: local:101/vm-101-disk-0.raw,size=1G
+rootfs: local:101/vm-101-disk-1.raw,size=1G
+startup: order=1
 swap: 512
 unprivileged: 1
 lxc.net.5.type: phys
@@ -230,7 +259,7 @@ lxc.net.9.flags: up
 
 #### 连接互联网
 
-由于我需要 OpenWrt 通过 PVE 管理口来访问互联网，所以需要先为 veth0 配置一些上网功能。
+由于我需要 OpenWrt 通过 PVE 管理口连接电脑，通过电脑将无线网共享给有线网来访问互联网，所以需要先为 veth0 配置一些上网功能。
 
 添加 Interface veth0，类型为静态地址，网卡设为 veth0，配置好对应的地址，网关和 DNS 服务器地址即可。
 
@@ -277,9 +306,9 @@ opkg install luci-theme-argon*.ipk
 
 dnsmasq 正常后，在接口中配置 DHCP / DNS 的相关配置，然后 lan 口上接的设备就能获取到分配的地址了。
 
-IPv6 默认并不会配置 SNAT，需要做一些手动配置，参考：<https://openwrt.org/docs/guide-user/network/ipv6/ipv6.nat6>
+校园网只会分配 /128 地址，故 IPv6 也需要做个 NAT。OpenWrt 中 IPv6 默认并不会配置 SNAT，需要做一些手动配置，参考：<https://openwrt.org/docs/guide-user/network/ipv6/ipv6.nat6>
 
-先启用 IPv6 masquerading，其中 `zone[1]` 为 wan 域：
+先启用 IPv6 masquerading，其中我这儿的 `zone[1]` 为 wan 域：
 
 ``` bash
 uci set firewall.@zone[1].masq6="1"
@@ -295,6 +324,8 @@ uci commit network
 /etc/init.d/network restart
 ```
 
+这样 lan 口上接的设备也能获取到 DHCPv6 分配的 IPv6 地址了，OpenWrt 也会为其提供 NAT6 服务。
+
 #### 配置 OpenClash
 
 先卸载 dnsmasq：
@@ -306,7 +337,7 @@ mv /etc/config/dhcp /etc/config/dhcp.bak
 
 再按照发布页的说明，先安装依赖，再下载安装 ipk 即可：<https://github.com/vernesong/OpenClash/releases>
 
-之后按个人喜好配置即可，我选用的是 Meta 核心的 redir-host 模式，之后另开一篇记录吧。
+之后按个人喜好配置即可，我选用的是 Meta 核心的 redir-host 模式。
 
 可以将校园网网段设为绕过，减少校内网络访问开销：
 
@@ -332,9 +363,9 @@ IPv6：
 
 或者可以打开 `实验性：绕过中国大陆 IP` 功能，减少国内网络访问开销。
 
-##### 遇上 OpenClash 的一个 bug
+遇上 OpenClash 的一个 bug。（**Updated 2023.07.02：** 随着 `0.45.128` 版本的发布，该问题已得到修复）
 
-似乎 OpenClash 配得有些问题，启动时无法进行认证，检查发现，虽然已经关闭了 `路由本机代理`，但是还是会 nftables 中添加处理 Output 链的规则，见 <https://github.com/vernesong/OpenClash/blob/9ee0f02ed7615a62f960c9ee2f951dd1b47e2411/luci-app-openclash/root/etc/init.d/openclash#LL1649C1-L1672C9>：
+在 LuCI 中，虽然已经关闭了 `路由本机代理`，但是还是会 nftables 中添加处理 Output 链的规则，见 <https://github.com/vernesong/OpenClash/blob/9ee0f02ed7615a62f960c9ee2f951dd1b47e2411/luci-app-openclash/root/etc/init.d/openclash#LL1649C1-L1672C9>：
 
 ``` bash
 if [ "$enable_redirect_dns" != "2" ] || [ "$router_self_proxy" = "1" ]; then
@@ -350,8 +381,6 @@ fi
 这里的判断中 **或** 上了不使用 Dnsmasq 转发，所以在我的工况下会被启用。暂时未明白为何要这样，故提了 Issue：<https://github.com/vernesong/OpenClash/issues/3354>。
 
 两天后作者在 [d499374](https://github.com/vernesong/OpenClash/commit/d49937415c00c6d3f2519a382cd13be54d531e8b) 中修复了该 bug，发布于 `0.45.125` 版本中，等待合入 master。
-
-**Updated 2023.07.02：** 随着 `0.45.128` 版本的发布，该问题已得到修复。
 
 #### 配置校园网认证
 
@@ -470,13 +499,11 @@ ip link set eth4 up
 
 两种方式，一种是基于 iptables 实现，另一种是使用 socat 来转发。
 
-##### 基于 iptables 实现
+##### **基于 iptables 实现**
 
 OpenWrt 默认的端口转发基于 iptables / nftables 实现，然而，配置后发现，在内网无法使用外网地址访问对应端口，初步探索后推测是 NAT 环回时出现问题。
 
 于是在 nftables 中进行调试。
-
-###### nftables 调试方法
 
 先新建一个表为符合规则的包启用跟踪调试：
 
@@ -488,22 +515,18 @@ nft insert rule inet trace_debug trace_pre ip saddr 192.168.22.118 ip daddr ??.?
 
 然后 `nft monitor trace` 就可以跟踪了。
 
-###### 结果分析与问题解决
-
-包在 `prerouting policy accept` 后消失了。
+跟踪检查后发现，包在 `prerouting policy accept` 后消失了。
 
 一番摸索后发现，当对应网卡（`br-lan`）开启混杂模式后，就能正常工作了。
 
-怀疑是 prerouting 后发现目标地址为本地链路地址，于是就修改了目的 mac 地址，导致非混杂模式的网卡将其丢弃。
+怀疑是 prerouting 后发现目标地址为本地链路地址，于是就修改了目的 mac 地址，导致非混杂模式的网卡将其丢弃。不过简单搜索后也没找到相关的资料。
 
-##### 使用 socat
+##### **使用 socat**
 
 **Updated 2023.06.29：** 使用 socat 遇到了一些问题，故弃用：
 
 - 会修改源地址，丢失地址数据
 - UDP 的转发使用 fork 参数存在线程泄漏问题，似乎每个 UDP 包都会 fork 出一个进程且不释放，导致产生大量进程占满内存
-
-选择使用 socat 来实现端口转发。
 
 安装：
 
@@ -538,9 +561,13 @@ uci commit
 
 #### 配置 DDNS
 
+我的 DNS 解析提供商为 CloudFlare，故安装 `ddns-scripts-cloudflare`。
+
 ```bash
 opkg install ddns-scripts-cloudflare luci-i18n-ddns-zh-cn
 ```
+
+安装完成后在 LuCI 中配置即可，没太大难度。IPv4 和 IPv6 地址需要分别配置。
 
 #### 配置 AdGuard Home
 
@@ -570,11 +597,21 @@ opkg update
 opkg install luci-i18n-wireguard-zh-cn
 ```
 
-重启后，在添加接口中就可以找到 WireGuard VPN 了，
+重启后，在添加接口中就可以找到 WireGuard VPN 了，我添加了一个名为 `wg0` 的接口。
+
+作为公网 IP 下供其它端来主动连接的一端，我特殊指定了这个接口的监听端口，并在防火墙中运行了该端口的 UDP 访问。
+
+该接口的 IP 地址需要配置为单独的子网，用于各端 VPN 接口间的互相连接。我为其配置了 `192.168.23.1/24` 和 `fd23:41b7:e060::1/64` 地址，与 22 网段区别开。
+
+为了方便配置，我没有将这个接口划入单独的区域，而是划入了 lan 区域，共享 lan 区域的防火墙配置。
+
+然后就可以添加对端了。注意 `允许的 IP` 的这一项中填写 “对端的隧道 IP 地址和对端经由隧道的网络”，对于对端为非路由设备的情况，这一项只填隧道 IP 地址就行，比如 `192.168.23.102/32`（/32 可省略），但不能填写 VPN 接口间的网段，即不能填写 `192.168.23.102/24`。
+
+各项设置可能需要重启后生效。
 
 #### 之后的计划
 
-- 配置内网 IP 的 DNS 服务
+- 配置内网 IP 的域名
 - 配置 MosDNS 优化 DNS 解析（参考：<https://rushb.pro/article/router-dns.html>）
 - 配置 Grafana 可视化路由运行状态、MosDNS 运行数据等
 - 配置 UDP 转发以及游戏优化
@@ -705,37 +742,13 @@ Web UI 使用 [transmission-web-control](https://github.com/ronggang/transmissio
 
 迁移只需要将之前的 `config` 目录移过来即可，如果时裸机安装，目录可能在 `/var/lib/transmission-daemon/info`
 
-### 配置 MC 服务器
-
-#### 安装 Java 8
-
-由于该整合包版本需要 Java 8，而 Debian 官方源中没有，故使用第三方源安装。
-
-准备工作：`sudo apt install apt-transport-https ca-certificates wget dirmngr gnupg software-properties-common`
-
-添加第三方源：
-
-``` bash
-wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | sudo tee /etc/apt/trusted.gpg.d/adoptopenjdk.asc
-sudo add-apt-repository --yes https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/
-```
-
-由于 adoptopenjdk 可能还没加上 bookworm 源，可能需要手动将源中的 `bookworm` 改为 `bullseye`。
-
-安装 Java 8 JRE：
-
-``` bash
-sudo apt update
-sudo apt install adoptopenjdk-8-hotspot-jre
-```
-
-#### 添加为服务
-
 ### 配置蓝牙监听服务
 
 之前 [使用树莓派和小米蓝牙温湿度计可视化宿舍温湿度变化](/2022/09/07/使用树莓派和小米蓝牙温湿度计可视化宿舍温湿度变化) 中配置了蓝牙接收温湿度计数据，也把这个服务迁移过来。
 
 花费十元购入了 BR8651 芯片的 USB 蓝牙 5.1 适配器，据说该芯片在 Linux 下有驱动。
+
+可能是因为芯片较新的原因，各方面的支持似乎都还不太好，尝试了几个方法都没能正常地使用脚本获取 BLE Advertising，这里记录了几次失败的过程。
 
 #### 配置 LXC 的 USB 直通
 
@@ -818,6 +831,32 @@ python3 get-pip.py --user
 
 安装 `pybluez` 时可能遇到 `error in PyBluez setup command: use_2to3 is invalid.` 的问题，参考 <https://github.com/pybluez/pybluez/issues/467>，先 `pip3 install setuptools==58` 再安装即可。
 
-遇到类似 <https://github.com/JsBergbau/MiTemperature2/issues/106> 的问题。
+之后遇到类似 <https://github.com/JsBergbau/MiTemperature2/issues/106> 的问题，以及类似 <https://stackoverflow.com/questions/75175755/not-seeing-ble-device-advertising-unless-set-bluetoothctl-transport-le> 的问题，都暂时没有被解决。
 
-以及类似 <https://stackoverflow.com/questions/75175755/not-seeing-ble-device-advertising-unless-set-bluetoothctl-transport-le> 的问题。
+于是也放弃了。
+
+### 配置 MC 服务器
+
+#### 安装 Java 8
+
+由于该整合包版本需要 Java 8，而 Debian 官方源中没有，故使用第三方源安装。
+
+准备工作：`sudo apt install apt-transport-https ca-certificates wget dirmngr gnupg software-properties-common`
+
+添加第三方源：
+
+``` bash
+wget -qO - https://adoptopenjdk.jfrog.io/adoptopenjdk/api/gpg/key/public | sudo tee /etc/apt/trusted.gpg.d/adoptopenjdk.asc
+sudo add-apt-repository --yes https://adoptopenjdk.jfrog.io/adoptopenjdk/deb/
+```
+
+由于 adoptopenjdk 可能还没加上 bookworm 源，可能需要手动将源中的 `bookworm` 改为 `bullseye`。
+
+安装 Java 8 JRE：
+
+``` bash
+sudo apt update
+sudo apt install adoptopenjdk-8-hotspot-jre
+```
+
+#### 添加为服务
