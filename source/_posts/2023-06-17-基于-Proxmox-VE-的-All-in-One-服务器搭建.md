@@ -6,7 +6,7 @@ tags:
 categories:
   - 折腾
 date: 2023-06-17 19:12:49
-updated: 2023-07-05 23:20:06
+updated: 2023-07-06 15:12:08
 toc: true
 thumbnail: /2023/06/17/基于-Proxmox-VE-的-All-in-One-服务器搭建/proxmox-logo.svg
 ---
@@ -178,6 +178,64 @@ UUID=1f4a2672-3039-594b-808c-a5d3913b0fde /data/hdd ext4 defaults 0 0
 ```
 
 然后 `mount -a` 生效，开机后也会自动挂载。
+
+### 硬盘维护
+
+#### 缩减数据盘的文件系统预留空间
+
+参考：<https://askubuntu.com/questions/249387/df-h-used-space-avail-free-space-is-less-than-the-total-size-of-home>
+
+默认情况下，`df -h` 查看硬盘空间会发现，`Size` 会大于 `Used` + `Avail`，如：
+
+``` plain
+Filesystem            Size  Used Avail Use% Mounted on
+/dev/sda1             294G  261G   19G  94% /data/hdd
+```
+
+这是由于 `ext2/3/4` 文件系统默认会保留 5% 的空间只供 root 使用，而数据盘就没这个必要了，可以 `tune2fs -m 0 /dev/sda1` 来取消预留空间。
+
+#### S.M.A.R.T. 信息
+
+在 WebUI 中，可以在节点的磁盘一栏中查看 S.M.A.R.T. 信息。
+
+命令行中，可以使用 `smartctl -a /dev/sda` 查看。
+
+S.M.A.R.T. 信息的解析，可以参考：<https://blog.csdn.net/MrSate/article/details/88564764>。
+
+使用 `journalctl -u smartmontools.service` 可以查看 smartmontools 守护进程的监测日志。
+
+#### 配置 smartd 守护程序
+
+还可以在 `/etc/smartd.conf` 中配置守护程序，初始时配置如下：
+
+``` conf /etc/smartd.conf
+DEVICESCAN -d removable -n standby -m root -M exec /usr/share/smartmontools/smartd-runner
+```
+
+添加如下参数：
+
+- 基于默认修改的监测与报警参数 `-H -f -l error -l selftest -C 197 -U 198`，相比默认的 `-a` 参数减少了等效的 `-t` 参数，否则每半小时都会在日志中输出 S.M.A.R.T. 信息的变化情况（详见 `/etc/smartd.conf` 中的说明）
+- 每周六凌晨三点短自检，每月二十号凌晨三点长自检：`-s (S/../../6/03/|L/../20/./03)`
+- 监控温度，在温度变化 5 度时记录，达到 40 度时记录，达到 45 度时警告：`-W 5,40,45`
+
+修改后如下：
+
+``` conf /etc/smartd.conf
+DEFAULT -H -f -l error -l selftest -d removable -n standby -m root -M exec /usr/share/smartmontools/smartd-runner
+/dev/nvme0 -W 10,60,70
+DEVICESCAN -C 197 -U 198 -s (S/../../6/03/|L/../20/./03) -W 5,40,50
+```
+
+重启服务后生效：`systemctl restart smartd.service`
+
+如果守护程序检测到了出现问题，也会给安装 PVE 时填写的邮箱发邮件，实测 QQ 邮箱可以收到。
+
+参考：
+
+- `man smartd.conf`
+- <https://blog.kahosan.top/2022/06/20/%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8%20smartd%20%E7%9B%91%E6%8E%A7%E4%BD%A0%E7%9A%84%E7%A1%AC%E7%9B%98/>
+- <https://forum.proxmox.com/threads/seagate-smart-prefailure-attribute.57454/>
+- <https://wiki.archlinux.org/title/S.M.A.R.T.#smartd>
 
 ## 基于 LXC 安装 OpenWrt
 
