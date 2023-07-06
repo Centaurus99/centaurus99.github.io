@@ -6,7 +6,7 @@ tags:
 categories:
   - 折腾
 date: 2023-06-17 19:12:49
-updated: 2023-07-06 15:12:08
+updated: 2023-07-06 22:14:04
 toc: true
 thumbnail: /2023/06/17/基于-Proxmox-VE-的-All-in-One-服务器搭建/proxmox-logo.svg
 ---
@@ -169,7 +169,7 @@ cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
 
 再接上一块老机械盘，用来挂 PT。
 
-安装好硬盘后，先使用 `fdisk -lu` 和 `blkid` 找到分区的 UUID，使用 UUID 进行挂载可以避免 `/dev/` 下设备名的改变导致的挂载问题。
+安装好硬盘后，先使用 `lsblk -f` 或者 `ls -l /dev/disk/by-uuid` 找到分区的 UUID，使用 UUID 进行挂载可以避免 `/dev/` 下设备名的改变导致的挂载问题。
 
 然后在 `/etc/fstab` 中添加挂载信息：
 
@@ -216,14 +216,14 @@ DEVICESCAN -d removable -n standby -m root -M exec /usr/share/smartmontools/smar
 
 - 基于默认修改的监测与报警参数 `-H -f -l error -l selftest -C 197 -U 198`，相比默认的 `-a` 参数减少了等效的 `-t` 参数，否则每半小时都会在日志中输出 S.M.A.R.T. 信息的变化情况（详见 `/etc/smartd.conf` 中的说明）
 - 每周六凌晨三点短自检，每月二十号凌晨三点长自检：`-s (S/../../6/03/|L/../20/./03)`
-- 监控温度，在温度变化 5 度时记录，达到 40 度时记录，达到 45 度时警告：`-W 5,40,45`
+- 监控温度，在温度变化 5 度时记录，达到 40 度时记录，达到 45 度时警告（0 为关闭）：`-W 5,40,45`
 
 修改后如下：
 
 ``` conf /etc/smartd.conf
 DEFAULT -H -f -l error -l selftest -d removable -n standby -m root -M exec /usr/share/smartmontools/smartd-runner
-/dev/nvme0 -W 10,60,70
-DEVICESCAN -C 197 -U 198 -s (S/../../6/03/|L/../20/./03) -W 5,40,50
+/dev/nvme0 -W 0,60,70
+DEVICESCAN -C 197 -U 198 -s (S/../../6/03/|L/../20/./03) -W 0,40,50
 ```
 
 重启服务后生效：`systemctl restart smartd.service`
@@ -236,6 +236,46 @@ DEVICESCAN -C 197 -U 198 -s (S/../../6/03/|L/../20/./03) -W 5,40,50
 - <https://blog.kahosan.top/2022/06/20/%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8%20smartd%20%E7%9B%91%E6%8E%A7%E4%BD%A0%E7%9A%84%E7%A1%AC%E7%9B%98/>
 - <https://forum.proxmox.com/threads/seagate-smart-prefailure-attribute.57454/>
 - <https://wiki.archlinux.org/title/S.M.A.R.T.#smartd>
+
+#### 配置硬盘休眠
+
+可能需要先关闭 `pvestatd` 对硬盘的扫描，参考：<https://www.ippa.top/954.html>
+
+先 `ls -l /dev/disk/by-uuid` 找到硬盘的 UUID `1f4a2672-3039-594b-808c-a5d3913b0fde`，然后编辑 `/etc/lvm/lvm.conf`，在 `global_filter` 中添加 `"r|/dev/disk/by-uuid/1f4a2672-3039-594b-808c-a5d3913b0fde.*|"`，结果如下：
+
+``` conf /etc/lvm/lvm.conf
+devices {
+    global_filter=["r|/dev/zd.*|", "r|/dev/disk/by-uuid/1f4a2672-3039-594b-808c-a5d3913b0fde.*|"]
+}
+```
+
+`pvestatd restart` 后生效。
+
+查看硬盘当前状态：`smartctl -i -n standby /dev/sda | grep "mode"|awk '{print $4}'`，ACTIVE 或者 IDLE 都为运转状态。
+
+查询当前电源管理参数：`hdparm -B /dev/sda`
+
+进入 `standby mode`：`hdparm -y /dev/sda`
+
+进入 `sleep mode`：`hdparm -Y /dev/sda`
+
+然后编辑 `/etc/hdparm.conf`，添加需要休眠的硬盘设置，比如十分钟后 standby 如下配置：
+
+``` conf /etc/hdparm.conf
+/dev/disk/by-uuid/1f4a2672-3039-594b-808c-a5d3913b0fde {
+        apm = 127
+        acoustic_management = 127
+        spindown_time = 120
+}
+```
+
+`/usr/lib/pm-utils/power.d/95hdparm-apm resume` 后生效（参考 `man hdparm.conf`）
+
+其中 `spindown_time` 参考 `man hdparm` 中的 `-S` 选项说明来设置。
+
+不过我的这块硬盘似乎并不按照设定的 `spindown_time` 来休眠，于是打算观察一段时间 `Load_Cycle_Count` 的增长情况来决定是否开启休眠功能。
+
+`smartctl -a /dev/sda | grep Load_Cycle_Count` 即可查看。
 
 ## 基于 LXC 安装 OpenWrt
 
