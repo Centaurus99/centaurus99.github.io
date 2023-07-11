@@ -6,7 +6,7 @@ tags:
 categories:
   - 折腾
 date: 2023-06-17 19:12:49
-updated: 2023-07-06 22:14:04
+updated: 2023-07-11 11:34:22
 toc: true
 thumbnail: /2023/06/17/基于-Proxmox-VE-的-All-in-One-服务器搭建/proxmox-logo.svg
 ---
@@ -832,13 +832,55 @@ networks:
 
 Web UI 使用 [transmission-web-control](https://github.com/ronggang/transmission-web-control)，在 `/config` 对应的目录下 git clone 即可。
 
+迁移之前的种子和配置只需要将之前的 `config` 目录移过来即可，如果之前是裸机安装，目录可能在 `/var/lib/transmission-daemon/info`
+
+还要记得在路由器上配置 51413 端口的 TCP & UDP 转发。
+
+配完端口转发，查看防火墙规则链可知，无需再在通信规则中开放端口。
+
+#### 运行方法
+
 创建 container 并启动后台运行：`docker compose up -d`
 
 停止并删除 container 和对应的网络：`docker compose down`
 
 启动 / 停止 对应的 container：`docker compose start` / `docker compose stop`
 
-迁移只需要将之前的 `config` 目录移过来即可，如果时裸机安装，目录可能在 `/var/lib/transmission-daemon/info`
+更新：先 `docker-compose pull`，然后 `docker compose down` 和 `docker compose up -d`
+
+清理无用镜像：`docker image prune`
+
+### 配置 Syncthing 同步服务
+
+使用 [linuxserver/syncthing](https://hub.docker.com/r/linuxserver/syncthing) Docker 镜像。
+
+使用 Docker Compose 来配置容器，按说明编写配置文件。
+
+由于 Syncthing 需要发送本地组播包来进行本地链路上的节点发现，故这里将网络模式修改为 host 模式，参考：<https://github.com/syncthing/syncthing/blob/main/README-Docker.md#discovery>。
+
+``` yml docker-compose.yml
+---
+version: "2.1"
+services:
+  syncthing:
+    image: lscr.io/linuxserver/syncthing:latest
+    container_name: syncthing
+    hostname: RaspCloud #optional
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Asia/Shanghai
+    volumes:
+      - /home/thx/Service/syncthing/config:/config
+      - /mnt:/mnt
+      - /data:/data
+    network_mode: host
+    restart: unless-stopped
+```
+
+还要记得在路由器上配置 22000 端口的 TCP & UDP 转发。
+
+运行方法同上。
 
 ### 配置蓝牙监听服务
 
