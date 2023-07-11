@@ -6,7 +6,7 @@ tags:
 categories:
   - 折腾
 date: 2023-06-17 19:12:49
-updated: 2023-07-11 11:34:22
+updated: 2023-07-11 21:12:10
 toc: true
 thumbnail: /2023/06/17/基于-Proxmox-VE-的-All-in-One-服务器搭建/proxmox-logo.svg
 ---
@@ -94,11 +94,29 @@ thumbnail: /2023/06/17/基于-Proxmox-VE-的-All-in-One-服务器搭建/proxmox-
     public = yes
     guest ok = yes
 
+[PT]
+    path = /data/PT
+    writeable = yes
+    create mask = 0644
+    directory mask = 1755
+    public = yes
+    guest ok = yes
+
 [Private]
     path = /data/Private
     writeable = yes
-    create mask = 0744
-    directory mask = 1744
+    create mask = 0644
+    directory mask = 1755
+    public = no
+    guest ok = no
+    valid users = thx
+    browseable = yes
+
+[Sync]
+    path = /data/Sync
+    writeable = yes
+    create mask = 0644
+    directory mask = 1755
     public = no
     guest ok = no
     valid users = thx
@@ -107,7 +125,9 @@ thumbnail: /2023/06/17/基于-Proxmox-VE-的-All-in-One-服务器搭建/proxmox-
 
 其中 `/data/RaspCloud` 为公开共享目录，内部有 `read-only` 目录通过改变目录所有者来限制 guest 的写入。
 
-`/data/Private` 为私密目录，使用白名单限制访问用户。
+`/data/PT` 为公开只读共享目录。
+
+`/data/Private` 和 `/data/Sync` 为私密目录，使用白名单限制访问用户。
 
 如果需要在共享目录中软链接到系统里的其它目录中，则需要在 `[global]` 段中添加：
 
@@ -732,6 +752,33 @@ opkg install luci-i18n-wireguard-zh-cn
 
 默认下终端可能会有乱码，需要配置 UTF-8 语言，`sudo dpkg-reconfigure locales` 然后选中 `en_US.UTF-8` 即可。
 
+### 配置 UID / GID 映射
+
+如果直接挂载目录共享的话，容器内外会视为不同的用户，导致共享文件时有着麻烦的权限问题。不过我们可以通过 `lxc.idmap` 来将某一容器中的某些用户映射到 Host 中的某些用户。
+
+参考：
+
+- <https://kcore.org/2022/02/05/lxc-subuid-subgid/>
+- <https://pve.proxmox.com/wiki/Unprivileged_LXC_containers>
+- <https://itsembedded.com/sysadmin/proxmox_bind_unprivileged_lxc/>
+
+以下以映射 102 容器中的 1000 用户为 Host 中的 1000 用户为例：
+
+先在 `/etc/subuid` 和 `/etc/subgid` 中都添加上 `root:1000:1`，来允许 root 创建到 1000 用户的映射。
+
+然后在 `/etc/pve/lxc/102.conf` 的配置文件中，添加如下内容：
+
+``` conf /etc/pve/lxc/102.conf
+lxc.idmap: u 0 100000 1000
+lxc.idmap: g 0 100000 1000
+lxc.idmap: u 1000 1000 1
+lxc.idmap: g 1000 1000 1
+lxc.idmap: u 1001 101000 64535
+lxc.idmap: g 1001 101000 64535
+```
+
+建议将原来容器内 1000 映射到的 101000 用户还包含在映射范围内，这样容器内的 root 才能够将文件的所有权从原先的转到现在的。
+
 ### 安装 Docker
 
 由于并不想在 PVE 中直接装 Docker，故在 Debian 虚拟机中安装 Docker。
@@ -809,8 +856,9 @@ services:
       - HOST_WHITELIST= #optional
     volumes:
       - /home/thx/Service/transmission/config:/config
-      - /data/RaspCloud/read-only/PT:/downloads
-      - /data/RaspCloud/read-only/PT/torrentwatch:/watch
+      - /data/PT:/downloads
+      - /data/PT/torrentwatch:/watch
+      - /mnt:/mnt
     ports:
       - 9091:9091
       - 51413:51413
@@ -823,7 +871,7 @@ networks:
     enable_ipv6: true
     ipam:
       config:
-        - subnet: 2001:0DB8::/112
+        - subnet: 2001:0DB8:1::/112
 ```
 
 其中 UID / GID 可以参考 `id $user` 的结果设置。
@@ -1000,3 +1048,26 @@ sudo apt install adoptopenjdk-8-hotspot-jre
 ```
 
 #### 添加为服务
+
+添加为 systemd 服务，参考 <https://gist.github.com/winny-/bb17853ffc76fbb9b039> 进行修改。
+
+``` ini /etc/systemd/system/minecraft.service
+[Unit]
+Description=Minecraft Server
+
+[Service]
+WorkingDirectory=/data/MC/RAD2-1.3/RAD2-Serverpack-1.3
+User=thx
+Type=forking
+ExitType=cgroup
+ExecStart=/usr/bin/tmux new-session -s mc -d './LaunchServer.sh'
+ExecStop=/usr/bin/tmux send-keys -t mc:0.0 'say SERVER SHUTTING DOWN. Saving map...' C-m 'save-all' C-m 'stop' C-m
+ExecStop=/bin/sleep 2
+
+[Install]
+WantedBy=multi-user.target
+```
+
+使用 `Type=forking` 来管理 `tmux new-session` fork 出的进程。
+
+使用 `ExitType=cgroup` 等待所有程序退出。
