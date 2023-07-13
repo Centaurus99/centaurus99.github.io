@@ -6,7 +6,7 @@ tags:
 categories:
   - 折腾
 date: 2023-06-17 19:12:49
-updated: 2023-07-11 21:12:10
+updated: 2023-07-14 0:25:24
 toc: true
 thumbnail: /2023/06/17/基于-Proxmox-VE-的-All-in-One-服务器搭建/proxmox-logo.svg
 ---
@@ -194,8 +194,10 @@ cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
 然后在 `/etc/fstab` 中添加挂载信息：
 
 ``` plain /etc/fstab
-UUID=1f4a2672-3039-594b-808c-a5d3913b0fde /data/hdd ext4 defaults 0 0
+UUID=1f4a2672-3039-594b-808c-a5d3913b0fde /data/hdd ext4 defaults,nofail 0 0
 ```
+
+注意 `nofail` 用来在硬盘没有成功挂载时也能正常启动，否则启动会等待硬盘挂载，失败后进入 emergency mode。
 
 然后 `mount -a` 生效，开机后也会自动挂载。
 
@@ -296,6 +298,32 @@ devices {
 不过我的这块硬盘似乎并不按照设定的 `spindown_time` 来休眠，于是打算观察一段时间 `Load_Cycle_Count` 的增长情况来决定是否开启休眠功能。
 
 `smartctl -a /dev/sda | grep Load_Cycle_Count` 即可查看。
+
+#### 硬盘无法休眠 Debug
+
+后来又入了两块盘，但是 `hdparm -y` 之后又会立即唤醒，无法进入休眠状态。
+
+诊断方式参考：<https://askubuntu.com/questions/1406434/block-dump-reporting-missing-from-ubuntu-22-04>
+
+监控对 `/dev/sda` 的使用：`blktrace -d /dev/sda -a pc -o - | blkparse -i -`
+
+然后 `hdparm -Y /dev/sda` ，查看唤醒磁盘的进程。
+
+我这儿结果如下，然而搜索相关资料后并没有获取到有用的信息：
+
+``` plain
+  8,16   0        1     0.000000000 18871  D   N 0 [hdparm]
+  8,16   1        1     0.497835738     0  C   N [0]
+  8,16   0        2     1.412267626   168  D   R 4 [scsi_eh_1]
+  8,16   0        3     1.412286261    14  C   R [0]
+  8,16   0        4     1.412293625    18  D   R 12 [kworker/0:1]
+  8,16   0        5     1.412295327    14  C   R [0]
+  8,16   0        6     1.412297439    18  D   R 4 [kworker/0:1]
+  8,16   0        7     1.412298518    14  C   R [0]
+  ...
+```
+
+有可能是 ext4 的 lazy init 导致，参考：<https://unix.stackexchange.com/questions/533789/hard-drive-waking-from-sleep-for-no-apparent-reason>
 
 ## 基于 LXC 安装 OpenWrt
 
@@ -741,6 +769,8 @@ opkg install luci-i18n-wireguard-zh-cn
 选用 Debian 12 系统，可以直接从 CT 模板中下载。
 
 参考 <https://pve.proxmox.com/wiki/Unprivileged_LXC_containers#Using_local_directory_bind_mount_points>，挂载宿主机的共享目录：`pct set 100 -mp0 /host/dir,mp=/container/mount/point`
+
+似乎直接挂载宿主机中的 /mnt 的话，即使配置完 UID / GID 映射，LXC 容器也并不能正常访问其中宿主机挂载的子目录，可能需要在宿主机 umount 再 mount。所以需要将 mp 指定的目录细化到类似 `/mnt/hdd1` 这一层。
 
 添加一个虚拟网卡 `eth0` 桥接到 vmbr0 上，IPv4 选择 DHCP 接收 OpenWrt 的地址分发；而如果 IPv6 选择 DHCP 的话，DHCPv6 是不会通告默认路由的，所以建议选择 SLAAC。
 
