@@ -6,7 +6,7 @@ tags:
 categories:
   - 折腾
 date: 2023-06-17 19:12:49
-updated: 2023-07-14 0:25:24
+updated: 2023-08-22 1:10:55
 toc: true
 thumbnail: /2023/06/17/基于-Proxmox-VE-的-All-in-One-服务器搭建/proxmox-logo.svg
 ---
@@ -528,6 +528,31 @@ fi
 
 两天后作者在 [d499374](https://github.com/vernesong/OpenClash/commit/d49937415c00c6d3f2519a382cd13be54d531e8b) 中修复了该 bug，发布于 `0.45.125` 版本中，等待合入 master。
 
+##### 远程 Wireshark 抓包调试
+
+有时配挂了需要抓包调试，可以使用远程主机上的 tcpdump + Windows 本机上的 wireshark 远程抓包分析。
+
+给用户非 root 使用 tcpdump 权限：`sudo chmod u+s /usr/sbin/tcpdump`
+
+然后 Windows 本机执行 `ssh ubuntu "tcpdump -i br-lan -l -w - 'port not 22'" | wireshark -k -i -` 即可开始抓包。
+
+参考：<https://thiscute.world/posts/tcpdump-and-wireshark>
+
+##### 配置 UDP 代理
+
+使用 Redir-Host 兼容模式 + UDP tproxy 转发似乎并不能正常运行，所以还是得使用 TUN 模式。
+
+LXC 启用 TUN 需要一点额外的配置，参考 <https://forum.proxmox.com/threads/how-to-enable-tun-tap-in-a-lxc-container.25339/>，在配置文件中添加如下内容：
+
+``` conf
+lxc.cgroup.devices.allow: c 10:200 rwm
+lxc.mount.entry: /dev/net dev/net none bind,create=dir
+```
+
+然后选用 Meta 内核，IPv4 和 IPv6 都启用 TUN 模式，即可代理 UDP 流量了。
+
+还可以考虑开启 `仅允许常用端口流量` 来防止不必要的代理。具体地，此处所指的常用端口如下：`21 22 23 53 80 123 143 194 443 465 587 853 993 995 998 2052 2053 2082 2083 2086 2095 2096 5222 5228 5229 5230 8080 8443 8880 8888 8889`。
+
 #### 配置校园网认证
 
 使用 [GoAuthing](https://github.com/z4yx/GoAuthing)。
@@ -655,8 +680,8 @@ OpenWrt 默认的端口转发基于 iptables / nftables 实现，然而，配置
 
 ``` bash
 nft add table inet trace_debug
-nft add chain inet trace_debug trace_pre { type filter hook prerouting priority -200000; }
-nft insert rule inet trace_debug trace_pre ip saddr 192.168.22.118 ip daddr ??.??.??.?? tcp limit rate 1/second meta nftrace set 1
+nft 'add chain inet trace_debug trace_pre { type filter hook prerouting priority -200000; }'
+nft insert rule inet trace_debug trace_pre ip saddr 192.168.22.118 ip daddr ??.??.??.?? limit rate 1/second meta nftrace set 1
 ```
 
 然后 `nft monitor trace` 就可以跟踪了。
