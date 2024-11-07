@@ -271,6 +271,19 @@ widgets:
             RSS:
                 icon: fas fa-rss
                 url: /atom.xml
+    # Links widget configurations
+    -
+        position: left
+        type: links
+        links:
+            Obliviated::Victor: 'https://obliv.me/'
+            Wandai Blog: 'https://twd2.me/'
+            zbaxrl's blog: 'https://blog.mky.moe/'
+            zcysky: 'https://shiroha.info/'
+            海上的宫殿: 'https://soha.moe/'
+            杰克部落: 'https://renjikai.com/'
+            属于CYY自己的世界: 'https://blog.cyyself.name/'
+            月出: 'https://www.cnblogs.com/moonout'
     # Table of contents widget configurations
     -
         # Where should the widget be placed, left sidebar or right sidebar
@@ -287,16 +300,16 @@ widgets:
         # Where should the widget be placed, left sidebar or right sidebar
         position: right
         type: recent_posts
+    # Tags widget configurations
+    -
+        # Where should the widget be placed, left sidebar or right sidebar
+        position: right
+        type: tags
     # Categories widget configurations
     -
         # Where should the widget be placed, left sidebar or right sidebar
         position: right
         type: categories
-    # Tags widget configurations
-    -
-        # Where should the widget be placed, left sidebar or right sidebar
-        position: left
-        type: tags
     # Archives widget configurations
     -
         # Where should the widget be placed, left sidebar or right sidebar
