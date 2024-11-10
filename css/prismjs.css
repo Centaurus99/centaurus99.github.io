@@ -1,0 +1,270 @@
+body:not(.night) [data-waline] .token {
+  all: unset;
+}
+body:not(.night) [data-waline] pre code {
+  all: unset;
+  font-family: Consolas, Courier, Menlo, monospace, Ubuntu, Roboto;
+}
+body:not(.night) [data-waline] pre[class*=language-] {
+  all: unset;
+  font-family: Consolas, Courier, Menlo, monospace, Ubuntu, Roboto;
+}
+body:not(.night) [data-waline] .token.comment,
+body:not(.night) [data-waline] .token.prolog,
+body:not(.night) [data-waline] .token.cdata {
+  color: #a0a1a7;
+}
+body:not(.night) [data-waline] .token.doctype,
+body:not(.night) [data-waline] .token.punctuation,
+body:not(.night) [data-waline] .token.entity {
+  color: #383a42;
+}
+body:not(.night) [data-waline] .token.attr-name,
+body:not(.night) [data-waline] .token.class-name,
+body:not(.night) [data-waline] .token.boolean,
+body:not(.night) [data-waline] .token.constant,
+body:not(.night) [data-waline] .token.number,
+body:not(.night) [data-waline] .token.atrule {
+  color: #b76b01;
+}
+body:not(.night) [data-waline] .token.keyword {
+  color: #a626a4;
+}
+body:not(.night) [data-waline] .token.property,
+body:not(.night) [data-waline] .token.tag,
+body:not(.night) [data-waline] .token.symbol,
+body:not(.night) [data-waline] .token.deleted,
+body:not(.night) [data-waline] .token.important {
+  color: #e45649;
+}
+body:not(.night) [data-waline] .token.selector,
+body:not(.night) [data-waline] .token.string,
+body:not(.night) [data-waline] .token.char,
+body:not(.night) [data-waline] .token.builtin,
+body:not(.night) [data-waline] .token.inserted,
+body:not(.night) [data-waline] .token.regex,
+body:not(.night) [data-waline] .token.attr-value,
+body:not(.night) [data-waline] .token.attr-value > .token.punctuation {
+  color: #50a14f;
+}
+body:not(.night) [data-waline] .token.variable,
+body:not(.night) [data-waline] .token.operator,
+body:not(.night) [data-waline] .token.function {
+  color: #4078f2;
+}
+body:not(.night) [data-waline] .token.url {
+  color: #0184bc;
+}
+body:not(.night) [data-waline] .token.attr-value > .token.punctuation.attr-equals,
+body:not(.night) [data-waline] .token.special-attr > .token.attr-value > .token.value.css {
+  color: #383a42;
+}
+body:not(.night) [data-waline] .language-css .token.selector {
+  color: #e45649;
+}
+body:not(.night) [data-waline] .language-css .token.property {
+  color: #383a42;
+}
+body:not(.night) [data-waline] .language-css .token.function,
+body:not(.night) [data-waline] .language-css .token.url > .token.function {
+  color: #0184bc;
+}
+body:not(.night) [data-waline] .language-css .token.url > .token.string.url {
+  color: #50a14f;
+}
+body:not(.night) [data-waline] .language-css .token.important,
+body:not(.night) [data-waline] .language-css .token.atrule .token.rule {
+  color: #a626a4;
+}
+body:not(.night) [data-waline] .language-javascript .token.operator {
+  color: #a626a4;
+}
+body:not(.night) [data-waline] .language-javascript .token.template-string > .token.interpolation > .token.interpolation-punctuation.punctuation {
+  color: #ca1243;
+}
+body:not(.night) [data-waline] .language-json .token.operator {
+  color: #383a42;
+}
+body:not(.night) [data-waline] .language-json .token.null.keyword {
+  color: #b76b01;
+}
+body:not(.night) [data-waline] .language-markdown .token.url,
+body:not(.night) [data-waline] .language-markdown .token.url > .token.operator,
+body:not(.night) [data-waline] .language-markdown .token.url-reference.url > .token.string {
+  color: #383a42;
+}
+body:not(.night) [data-waline] .language-markdown .token.url > .token.content {
+  color: #4078f2;
+}
+body:not(.night) [data-waline] .language-markdown .token.url > .token.url,
+body:not(.night) [data-waline] .language-markdown .token.url-reference.url {
+  color: #0184bc;
+}
+body:not(.night) [data-waline] .language-markdown .token.blockquote.punctuation,
+body:not(.night) [data-waline] .language-markdown .token.hr.punctuation {
+  color: #a0a1a7;
+  font-style: italic;
+}
+body:not(.night) [data-waline] .language-markdown .token.code-snippet {
+  color: #50a14f;
+}
+body:not(.night) [data-waline] .language-markdown .token.bold .token.content {
+  color: #b76b01;
+}
+body:not(.night) [data-waline] .language-markdown .token.italic .token.content {
+  color: #a626a4;
+}
+body:not(.night) [data-waline] .language-markdown .token.strike .token.content,
+body:not(.night) [data-waline] .language-markdown .token.strike .token.punctuation,
+body:not(.night) [data-waline] .language-markdown .token.list.punctuation,
+body:not(.night) [data-waline] .language-markdown .token.title.important > .token.punctuation {
+  color: #e45649;
+}
+body:not(.night) [data-waline] .token.bold {
+  font-weight: bold;
+}
+body:not(.night) [data-waline] .token.comment,
+body:not(.night) [data-waline] .token.italic {
+  font-style: italic;
+}
+body:not(.night) [data-waline] .token.entity {
+  cursor: help;
+}
+body:not(.night) [data-waline] .token.namespace {
+  opacity: 0.8;
+}
+body.night [data-waline] .token {
+  all: unset;
+}
+body.night [data-waline] pre code {
+  all: unset;
+  font-family: Consolas, Courier, Menlo, monospace, Ubuntu, Roboto;
+}
+body.night [data-waline] pre[class*=language-] {
+  all: unset;
+  font-family: Consolas, Courier, Menlo, monospace, Ubuntu, Roboto;
+}
+body.night [data-waline] .token.comment,
+body.night [data-waline] .token.prolog,
+body.night [data-waline] .token.cdata {
+  color: #5c6370;
+}
+body.night [data-waline] .token.doctype,
+body.night [data-waline] .token.punctuation,
+body.night [data-waline] .token.entity {
+  color: #abb2bf;
+}
+body.night [data-waline] .token.attr-name,
+body.night [data-waline] .token.class-name,
+body.night [data-waline] .token.boolean,
+body.night [data-waline] .token.constant,
+body.night [data-waline] .token.number,
+body.night [data-waline] .token.atrule {
+  color: #d19a66;
+}
+body.night [data-waline] .token.keyword {
+  color: #c678dd;
+}
+body.night [data-waline] .token.property,
+body.night [data-waline] .token.tag,
+body.night [data-waline] .token.symbol,
+body.night [data-waline] .token.deleted,
+body.night [data-waline] .token.important {
+  color: #e06c75;
+}
+body.night [data-waline] .token.selector,
+body.night [data-waline] .token.string,
+body.night [data-waline] .token.char,
+body.night [data-waline] .token.builtin,
+body.night [data-waline] .token.inserted,
+body.night [data-waline] .token.regex,
+body.night [data-waline] .token.attr-value,
+body.night [data-waline] .token.attr-value > .token.punctuation {
+  color: #98c379;
+}
+body.night [data-waline] .token.variable,
+body.night [data-waline] .token.operator,
+body.night [data-waline] .token.function {
+  color: #61afef;
+}
+body.night [data-waline] .token.url {
+  color: #56b6c2;
+}
+body.night [data-waline] .token.attr-value > .token.punctuation.attr-equals,
+body.night [data-waline] .token.special-attr > .token.attr-value > .token.value.css {
+  color: #abb2bf;
+}
+body.night [data-waline] .language-css .token.selector {
+  color: #e06c75;
+}
+body.night [data-waline] .language-css .token.property {
+  color: #abb2bf;
+}
+body.night [data-waline] .language-css .token.function,
+body.night [data-waline] .language-css .token.url > .token.function {
+  color: #56b6c2;
+}
+body.night [data-waline] .language-css .token.url > .token.string.url {
+  color: #98c379;
+}
+body.night [data-waline] .language-css .token.important,
+body.night [data-waline] .language-css .token.atrule .token.rule {
+  color: #c678dd;
+}
+body.night [data-waline] .language-javascript .token.operator {
+  color: #c678dd;
+}
+body.night [data-waline] .language-javascript .token.template-string > .token.interpolation > .token.interpolation-punctuation.punctuation {
+  color: #be5046;
+}
+body.night [data-waline] .language-json .token.operator {
+  color: #abb2bf;
+}
+body.night [data-waline] .language-json .token.null.keyword {
+  color: #d19a66;
+}
+body.night [data-waline] .language-markdown .token.url,
+body.night [data-waline] .language-markdown .token.url > .token.operator,
+body.night [data-waline] .language-markdown .token.url-reference.url > .token.string {
+  color: #abb2bf;
+}
+body.night [data-waline] .language-markdown .token.url > .token.content {
+  color: #61afef;
+}
+body.night [data-waline] .language-markdown .token.url > .token.url,
+body.night [data-waline] .language-markdown .token.url-reference.url {
+  color: #56b6c2;
+}
+body.night [data-waline] .language-markdown .token.blockquote.punctuation,
+body.night [data-waline] .language-markdown .token.hr.punctuation {
+  color: #5c6370;
+  font-style: italic;
+}
+body.night [data-waline] .language-markdown .token.code-snippet {
+  color: #98c379;
+}
+body.night [data-waline] .language-markdown .token.bold .token.content {
+  color: #d19a66;
+}
+body.night [data-waline] .language-markdown .token.italic .token.content {
+  color: #c678dd;
+}
+body.night [data-waline] .language-markdown .token.strike .token.content,
+body.night [data-waline] .language-markdown .token.strike .token.punctuation,
+body.night [data-waline] .language-markdown .token.list.punctuation,
+body.night [data-waline] .language-markdown .token.title.important > .token.punctuation {
+  color: #e06c75;
+}
+body.night [data-waline] .token.bold {
+  font-weight: bold;
+}
+body.night [data-waline] .token.comment,
+body.night [data-waline] .token.italic {
+  font-style: italic;
+}
+body.night [data-waline] .token.entity {
+  cursor: help;
+}
+body.night [data-waline] .token.namespace {
+  opacity: 0.8;
+}
