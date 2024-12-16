@@ -276,14 +276,15 @@ widgets:
         position: left
         type: links
         links:
+            Chenyu Zhou: 'https://self.shiroha.info/'
             Obliviated::Victor: 'https://obliv.me/'
             Wandai Blog: 'https://twd2.me/'
+            Xun Wang: 'https://misakau.github.io/'
             zbaxrl's blog: 'https://blog.mky.moe/'
-            zcysky: 'https://self.shiroha.info/'
             海上的宫殿: 'https://soha.moe/'
             杰克部落: 'https://renjikai.com/'
             属于CYY自己的世界: 'https://blog.cyyself.name/'
-            月出: 'https://blog.moonout.link'
+            月出: 'https://blog.moonout.link/'
     # Table of contents widget configurations
     -
         # Where should the widget be placed, left sidebar or right sidebar
