@@ -6,7 +6,7 @@ tags:
 categories:
   - 折腾
 date: 2023-06-17 19:12:49
-updated: 2023-08-22 1:10:55
+updated: 2025-08-25 21:46:26
 toc: true
 thumbnail: /2023/06/17/基于-Proxmox-VE-的-All-in-One-服务器搭建/proxmox-logo.svg
 ---
@@ -647,20 +647,24 @@ uci commit
 
 ``` bash
 ip link add bond-lan type bond mode 802.3ad # 添加 bond 类型的虚拟接口 名称为 bond-lan
+ip link set eth2 down
 ip link set eth3 down
-ip link set eth4 down
-ip link set eth3 type bond_slave            # 配置网卡模式
-ip link set eth4 type bond_slave
-ip link set eth3 master bond-lan            # 加入名称为 bond-lan 的 bond 类型网卡
-ip link set eth4 master bond-lan
+ip link set eth2 type bond_slave            # 配置网卡模式
+ip link set eth3 type bond_slave
+ip link set eth2 master bond-lan            # 加入名称为 bond-lan 的 bond 类型网卡
+ip link set eth3 master bond-lan
 ip link set bond-lan up                     # 启动该网卡
+ip link set eth2 up
 ip link set eth3 up
-ip link set eth4 up
+brctl addif br-lan bond-lan                 # 防止有时候无法自动添加到 br-lan 网桥上
+echo "layer3+4" > /sys/class/net/bond-lan/bonding/xmit_hash_policy
 ```
 
-将 `eth3` 和 `eth4` 从原来的 `br-lan` 中移除，添加上 `bond-lan` 即可。
+将 `eth2` 和 `eth3` 从原来的 `br-lan` 中移除，添加上 `bond-lan` 即可。
 
-实测无线可以跑到 1.6 Gbps 左右。
+关于 `xmit_hash_policy`，默认值为 `layer2`，会导致单台设备无法打到超过千兆的速度，改为 `layer3+4` 后可以部分改善。
+
+实测无线可以跑到 1.6 Gbps 左右（后来只能在 UDP 模式下测到 1.4 Gbps 左右了）。
 
 #### 配置防火墙
 
