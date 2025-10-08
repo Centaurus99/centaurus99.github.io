@@ -6,7 +6,7 @@ tags:
 categories:
   - 折腾
 date: 2023-06-17 19:12:49
-updated: 2025-08-25 21:46:26
+updated: 2025-10-08 17:26:50
 toc: true
 thumbnail: /2023/06/17/基于-Proxmox-VE-的-All-in-One-服务器搭建/proxmox-logo.svg
 ---
@@ -335,7 +335,7 @@ LXC 开销小，故尝试使用 LXC 安装 OpenWrt
 
 下载地址：<https://downloads.openwrt.org/>
 
-我选择了 20.03.5 版本：<https://downloads.openwrt.org/releases/22.03.5/targets/x86/64/>
+我选择当时最新的稳定版本 22.03.5：<https://downloads.openwrt.org/releases/22.03.5/targets/x86/64/>
 
 下载 `rootfs.tar.xz` 即可，可以在下载时选择哈希校验。
 
@@ -629,6 +629,66 @@ uci commit
 /etc/init.d/goauthing start
 ```
 
+**20251008 更新：** 上述 `goauthing@` 脚本会导致进程监测（如 htop）中明文暴露密码，故还是改为使用配置文件方式进行配置，虽然也是明文，但没有那么直接了（）。
+
+```shell /etc/init.d/goauthing
+#!/bin/sh /etc/rc.common
+# Authenticating utility for auth.tsinghua.edu.cn
+# This init script is used explicitly with OpenWRT
+
+USE_PROCD=1
+START=96
+PROG="/usr/bin/goauthing"
+CONF="/etc/goauthing.json"
+
+generate_command() {
+  sleep 15 # Wait for link up
+CMD="\
+\"$PROG\" -c \"$CONF\" -D deauth; \
+sleep 1; \
+\"$PROG\" -c \"$CONF\" -D auth; \
+sleep 3; \
+\"$PROG\" -c \"$CONF\" online; \
+"
+}
+
+start_service() {
+  generate_command
+  procd_open_instance
+  procd_set_param command sh
+  procd_append_param command -c "$CMD"
+  procd_set_param stderr 1
+  procd_set_param respawn
+  procd_close_instance
+}
+
+stop_service() {
+  "$PROG" -c "$CONF" -D deauth
+}
+```
+
+```json /etc/goauthing.json
+{
+  "username": "xxx",
+  "password": "xxx"
+}
+```
+
+如果后续有服务的启动过程需要已经完成认证，可以添加一个启动项来等待认证完成：
+
+```shell /etc/init.d/wait_goauthing
+#!/bin/sh /etc/rc.common
+# Wait for goauthing to finish authentication
+
+START=97
+
+start() {
+  echo "Waiting for goauthing to finish authentication..."
+  sleep 5
+  echo "Goauthing should be done now."
+}
+```
+
 #### 配置链路聚合 AP
 
 另购置了一台 Wi-Fi 6 无线路由器作为 AP，支持 2x2 MU-MIMO，160 MHz 频宽，理论带宽可达 2402 Mbps。
@@ -790,6 +850,12 @@ opkg install luci-i18n-wireguard-zh-cn
 - 配置 MosDNS 优化 DNS 解析（参考：<https://rushb.pro/article/router-dns.html>）
 - 配置 Grafana 可视化路由运行状态、MosDNS 运行数据等
 - 配置 UDP 转发以及游戏优化
+
+### 升级 OpenWrt
+
+对于软件包的升级，除了可以在 LuCI 中手动逐个升级外，还可以在命令行中先 `opkg update` 再 `opkg list-upgradable | cut -f 1 -d ' ' | xargs opkg upgrade` 来一键升级所有可升级的软件包。
+
+对于系统升级，可以 `opkg install luci-app-attendedsysupgrade` 后，在 LuCI 中使用 `系统` -> `值守式系统更新` 来升级。小版本升级似乎可以保留软件包和配置（装的已经是小版本最新，没试过），但是大版本升级则相当于重新安装了，需要重新配置。
 
 ## 基于 LXC 的其它功能服务器
 
